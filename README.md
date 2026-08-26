@@ -175,6 +175,39 @@ narrow screens inside its own `overflow-x-auto`; nothing else is allowed past
 the viewport edge. `scratchpad/e2e-responsive.mjs` asserts this at seven widths
 from 320px to 1728px, ignoring elements inside a scroll container.
 
+## Brand assets
+
+Copied from the crowdpass skill (`assets/design/`) and the mobile app
+(`v2-mobile/assets/`). Two deliberate sourcing choices:
+
+**Logos are the delivered rasters, not a redraw.** `public/brand/*.png` come
+straight from `assets/design/brand/`. There is no vector source — design open
+issue #12 — and an approximation of a company's own logo is worse than a raster
+of the real one. `logo-full-dark` is the lockup *for dark backgrounds*, the only
+kind this app has.
+
+> The real wordmark is "Crowd" **bold white** + "Pass" **light white**. The
+> orange lives in the mark, not in the type. A hand-built version of this had
+> "Pass" in the brand orange, which is not the logo.
+
+**Mascots come from `v2-mobile`, not from the skill.** The skill's
+`assets/design/mascots/*.svg` are rasters in SVG clothing with dark captions
+baked into the artwork (design open issue #13) — unreadable on `#08090D`, and
+they repeat the copy already sitting beside them. The mobile crops are art-only.
+`no-tickets` is the exception: that illustration carries no caption, so the
+skill's SVG is used directly.
+
+Poses in use: `success` and `error` on the payment result, `error` on 404,
+`no-tickets` on an empty search. The waiting state keeps a spinner —
+`mascot-pending` exists but has its caption baked in, and a spinner *moves*,
+which is the honest signal for a page that is actively polling. Swap it in if an
+art-only re-export lands.
+
+`src/app/icon.png` and `apple-icon.png` are the 1024² app icon, already composed
+on the brand background. `src/app/opengraph-image.png` is the default link
+preview — generated once with the browser, since no image library is available
+here; regenerate with `scratchpad/make-og.mjs` if the brand changes.
+
 ## Design
 
 Dark-only, mobile-first. Tokens in `src/app/globals.css` are ported 1:1 from

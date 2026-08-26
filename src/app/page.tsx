@@ -5,6 +5,7 @@ import { fetchUpcomingEvents } from "@/lib/crowdpass";
 import { DiscoverFilters } from "@/components/DiscoverFilters";
 import { EventCard, FeaturedEventCard } from "@/components/EventCards";
 import { Card, SectionTitle, Container, Spinner } from "@/components/ui";
+import { Mascot } from "@/components/Mascot";
 import type { ApiEventListItem, EventCategory } from "@/types/api";
 
 export const metadata: Metadata = {
@@ -123,8 +124,9 @@ async function Results({
   if (events.length === 0) {
     const filtered = !!(query.search || query.category || query.location);
     return (
-      <Card className="flex flex-col items-start gap-4 p-6">
-        <p className="text-body text-text-dim">
+      <Card className="flex flex-col items-center gap-4 p-10 text-center">
+        <Mascot pose="no-tickets" height={120} />
+        <p className="max-w-sm text-body text-text-dim">
           {filtered
             ? "No upcoming events match that. Try a different search or clear the filters."
             : "There are no upcoming events right now. Check back soon."}

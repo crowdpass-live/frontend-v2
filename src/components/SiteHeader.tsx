@@ -1,13 +1,6 @@
 import Link from "next/link";
 import { Container } from "./ui";
-
-export function Wordmark({ className }: { className?: string }) {
-  return (
-    <span className={className}>
-      Crowd<span className="text-accent">Pass</span>
-    </span>
-  );
-}
+import { Logo } from "./Logo";
 
 /**
  * The site bar.
@@ -23,13 +16,15 @@ export function Wordmark({ className }: { className?: string }) {
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-bg/80 backdrop-blur-md">
-      <Container size="page" className="flex h-16 items-center justify-between gap-4">
-        <Link
-          href="/"
-          className="text-section font-bold tracking-tight text-text"
-          aria-label="CrowdPass home"
-        >
-          <Wordmark />
+      <Container
+        size="page"
+        className="flex h-16 items-center justify-between gap-4"
+      >
+        <Link href="/" aria-label="CrowdPass home" className="flex items-center">
+          {/* The mark alone on a phone: the full lockup at a legible height
+           * eats a third of a 320px bar. */}
+          <Logo variant="mark" height={22} priority className="sm:hidden" />
+          <Logo variant="full" height={24} priority className="hidden sm:block" />
         </Link>
 
         <nav className="flex items-center gap-1">

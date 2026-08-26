@@ -1,5 +1,5 @@
 import { Container } from "./ui";
-import { Wordmark } from "./SiteHeader";
+import { Logo } from "./Logo";
 
 /**
  * Deliberately thin. There is no marketing site here to link into, and
@@ -14,9 +14,9 @@ export function SiteFooter() {
     <footer className="mt-auto border-t border-border/60">
       <Container
         size="page"
-        className="flex flex-col gap-2 py-8 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-4 py-8 sm:flex-row sm:items-center sm:justify-between"
       >
-        <Wordmark className="text-label font-bold text-text-dim" />
+        <Logo variant="full" height={20} className="opacity-60" />
         <p className="text-helper text-text-faint">
           Tickets minted on-chain. Built for Nigeria.
         </p>
