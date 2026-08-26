@@ -16,7 +16,7 @@ import {
   ButtonLink,
   Card,
   SectionTitle,
-  Shell,
+  Container,
   Spinner,
 } from "@/components/ui";
 import type { TransactionStatus } from "@/types/api";
@@ -141,9 +141,9 @@ export function CallbackClient() {
 
   if (!hydrated) {
     return (
-      <Shell className="flex flex-col items-center gap-4 text-center">
+      <Container className="flex flex-col items-center gap-4 text-center">
         <Spinner className="size-8 text-accent" />
-      </Shell>
+      </Container>
     );
   }
 
@@ -151,7 +151,7 @@ export function CallbackClient() {
   // and the gateway sent nothing. Nothing to poll.
   if (!reference) {
     return (
-      <Shell className="flex flex-col gap-6 text-center">
+      <Container className="flex flex-col gap-6 text-center">
         <StatusMark tone="neutral" />
         <div className="flex flex-col gap-2">
           <SectionTitle>We couldn&apos;t find that payment</SectionTitle>
@@ -163,13 +163,13 @@ export function CallbackClient() {
         <ButtonLink href="/" variant="secondary" className="w-full">
           Back to CrowdPass
         </ButtonLink>
-      </Shell>
+      </Container>
     );
   }
 
   if (status === "SUCCESS") {
     return (
-      <Shell className="flex flex-col gap-6 text-center">
+      <Container className="flex flex-col gap-6 text-center">
         <StatusMark tone="ok" />
         <div className="flex flex-col gap-2">
           <SectionTitle>You&apos;re in</SectionTitle>
@@ -190,13 +190,13 @@ export function CallbackClient() {
             <span className="font-mono text-text">{reference}</span>.
           </Card>
         )}
-      </Shell>
+      </Container>
     );
   }
 
   if (status === "FAILED") {
     return (
-      <Shell className="flex flex-col gap-6 text-center">
+      <Container className="flex flex-col gap-6 text-center">
         <StatusMark tone="danger" />
         <div className="flex flex-col gap-2">
           <SectionTitle>Payment didn&apos;t go through</SectionTitle>
@@ -214,14 +214,14 @@ export function CallbackClient() {
             Back to CrowdPass
           </ButtonLink>
         )}
-      </Shell>
+      </Container>
     );
   }
 
   // PENDING — the state the design never drew (open issue #11), and the one
   // Nigerian bank transfer and USSD make unavoidable.
   return (
-    <Shell className="flex flex-col gap-6 text-center">
+    <Container className="flex flex-col gap-6 text-center">
       <StatusMark tone="warn" pulse={!stalled} />
       <div className="flex flex-col gap-2">
         <SectionTitle>
@@ -267,7 +267,7 @@ export function CallbackClient() {
           "Check again"
         )}
       </Button>
-    </Shell>
+    </Container>
   );
 }
 

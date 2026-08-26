@@ -1,6 +1,8 @@
 import { ApiError, apiFetch } from "./api";
 import type {
   ApiEvent,
+  ApiEventList,
+  EventCategory,
   ApiFiatMethod,
   ApiCryptoMethod,
   ApiPaymentMethods,
@@ -14,6 +16,55 @@ import type {
 // ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
+
+export interface EventQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: EventCategory;
+  location?: string;
+  /** ISO date. Events starting before this are excluded. */
+  startDate?: string;
+}
+
+/**
+ * `GET /events` — the public browse/search list.
+ *
+ * Note what the caller has to supply: the endpoint does NOT exclude events
+ * that have already happened, and it sorts by `startTime` ascending, so an
+ * unfiltered first page is the *oldest* events in the database — the ones
+ * whose sales closed months ago. Callers wanting a browse experience must
+ * pass `startDate` (see `fetchUpcomingEvents`).
+ */
+export function fetchEvents(query: EventQuery = {}): Promise<ApiEventList> {
+  const params = new URLSearchParams();
+  params.set("page", String(query.page ?? 1));
+  params.set("limit", String(query.limit ?? 12));
+  if (query.search) params.set("search", query.search);
+  if (query.category) params.set("category", query.category);
+  if (query.location) params.set("location", query.location);
+  if (query.startDate) params.set("startDate", query.startDate);
+
+  return apiFetch<ApiEventList>(`/events?${params.toString()}`, {
+    // Short revalidate: the list carries `totalAvailable`, and a long cache
+    // would advertise a sold-out event as having seats. `no-store` would cost
+    // a round trip on every flyer-driven visit for no real gain.
+    next: { revalidate: 30 },
+  });
+}
+
+/**
+ * Events that haven't started yet, soonest first.
+ *
+ * `startDate` is the current time rather than midnight: an event that began an
+ * hour ago cannot be bought (the backend closes sales at `startTime`), so
+ * listing it would be an invitation to a dead end.
+ */
+export function fetchUpcomingEvents(
+  query: Omit<EventQuery, "startDate"> = {},
+): Promise<ApiEventList> {
+  return fetchEvents({ ...query, startDate: new Date().toISOString() });
+}
 
 /**
  * `GET /events/:slug` — public, published events only.

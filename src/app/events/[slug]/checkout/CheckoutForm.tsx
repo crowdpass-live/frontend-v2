@@ -11,7 +11,7 @@ import { fetchPaymentMethods, purchaseTicket } from "@/lib/crowdpass";
 import { money, normalizePhone } from "@/lib/format";
 import { rememberPendingPurchase } from "@/lib/pending";
 import { CardIcon, CoinIcon } from "@/components/icons";
-import { Button, Card, ErrorNote, SectionTitle, Shell, Spinner, cx } from "@/components/ui";
+import { Button, Card, ErrorNote, SectionTitle, Container, Spinner, cx } from "@/components/ui";
 import type { ApiEvent, ApiTicketType, PaymentProvider } from "@/types/api";
 
 /**
@@ -332,7 +332,11 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
     methods.isSuccess && !methods.data.fiat && !methods.data.crypto;
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-8">
+    <form
+      onSubmit={onSubmit}
+      className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-12"
+    >
+      <div className="flex flex-col gap-8">
       {/* Ticket */}
       <section className="flex flex-col gap-1">
         <SectionTitle>Select ticket</SectionTitle>
@@ -484,13 +488,26 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
       </section>
 
       {submitError ? <ErrorNote>{submitError}</ErrorNote> : null}
+      </div>
 
-      {/* Sticky total + pay. No fee row: the buyer pays the advertised price
-       * and nothing more — the 5% platform fee is organizer-side and deducted
-       * at settlement. This resolves open issue #2 in the design doc the same
-       * way the mobile app resolved it. */}
-      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-bg/95 backdrop-blur">
-        <Shell className="flex flex-col gap-3 py-4">
+      {/* Order summary + pay.
+       *
+       * ONE element in two positions, not two elements: a fixed bottom bar on
+       * a phone, a sticky sidebar card from `lg`. Rendering it twice would put
+       * two submit buttons in one form, and the browser would treat the first
+       * as the implicit submit on Enter — so the visible button and the one
+       * that actually fires could differ by breakpoint.
+       *
+       * No fee row: the buyer pays the advertised price and nothing more — the
+       * 5% platform fee is organizer-side and deducted at settlement. This
+       * resolves open issue #2 in the design doc the same way the mobile app
+       * resolved it. */}
+      <aside className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur lg:sticky lg:top-24 lg:z-auto lg:rounded-card lg:border lg:bg-surface lg:backdrop-blur-none">
+        <Container className="flex flex-col gap-3 py-4 lg:max-w-none lg:gap-5 lg:px-6 lg:py-6">
+          <p className="hidden text-section font-bold text-text lg:block">
+            Order summary
+          </p>
+
           <div className="flex items-baseline justify-between gap-4">
             <span className="truncate text-label text-text-faint">
               {tier ? `${quantity} × ${tier.name}` : "No ticket selected"}
@@ -499,6 +516,16 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
               {money(total, currency)}
             </span>
           </div>
+
+          {/* Only on the sidebar — the mobile bar has no room, and the total
+           * is already the line above it. */}
+          <div className="hidden border-t border-border pt-4 lg:flex lg:items-baseline lg:justify-between lg:gap-4">
+            <span className="text-body text-text-dim">Total</span>
+            <span className="text-title font-bold text-text">
+              {money(total, currency)}
+            </span>
+          </div>
+
           <Button
             type="submit"
             className="w-full"
@@ -515,8 +542,12 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
               `Pay ${money(total, currency)}`
             )}
           </Button>
-        </Shell>
-      </div>
+
+          <p className="hidden text-center text-helper text-text-faint lg:block">
+            You&apos;ll be redirected to a secure checkout.
+          </p>
+        </Container>
+      </aside>
     </form>
   );
 }

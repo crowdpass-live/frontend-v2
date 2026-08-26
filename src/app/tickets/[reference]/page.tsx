@@ -5,7 +5,7 @@ import { ApiError } from "@/lib/api";
 import { fetchTicketByReference } from "@/lib/crowdpass";
 import { formatDateTimeLong, money } from "@/lib/format";
 import { CalendarIcon, PinIcon } from "@/components/icons";
-import { Badge, ButtonLink, Card, Shell } from "@/components/ui";
+import { Badge, ButtonLink, Card, Container } from "@/components/ui";
 import type { ApiTicket, TicketStatus } from "@/types/api";
 
 type Params = { reference: string };
@@ -72,8 +72,8 @@ export default async function TicketPage({
   const showQr = ticket.status === "CONFIRMED" && !!ticket.qrCode;
 
   return (
-    <main className="flex flex-1 flex-col py-8">
-      <Shell className="flex flex-col gap-6">
+    <main className="flex flex-1 flex-col py-8 lg:py-16">
+      <Container className="flex flex-col gap-6">
         <header className="flex items-center justify-between gap-4">
           <h1 className="text-title font-bold text-text">Your ticket</h1>
           <Badge tone={status.tone}>{status.label}</Badge>
@@ -88,7 +88,7 @@ export default async function TicketPage({
           </div>
 
           {showQr ? (
-            <div className="flex flex-col items-center gap-4 border-t border-border bg-white px-5 py-6">
+            <div className="flex flex-col items-center gap-4 border-t border-border bg-white px-5 py-6 sm:py-8">
               {/* On white, deliberately: a QR needs light quiet-zone contrast
                * to scan reliably, and the scanner has under 2s to read it. */}
               <Image
@@ -153,7 +153,7 @@ export default async function TicketPage({
         >
           View event
         </ButtonLink>
-      </Shell>
+      </Container>
     </main>
   );
 }

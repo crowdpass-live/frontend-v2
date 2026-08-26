@@ -87,6 +87,43 @@ export interface ApiEvent {
   organizer: { id: string; firstName: string | null; lastName: string | null };
 }
 
+/**
+ * An event as it appears in `GET /events` (the list), which is a different
+ * shape from `GET /events/:slug` (the detail):
+ *
+ *   - `minPrice` and `totalAvailable` are computed and added by the list
+ *     endpoint only.
+ *   - `ticketTypes` is a thin projection — no `id`, so a list item can never
+ *     be used to start a purchase. The checkout page re-reads the detail.
+ */
+export interface ApiEventListItem
+  extends Omit<ApiEvent, "ticketTypes" | "organizer"> {
+  minPrice: number;
+  totalAvailable: number;
+  ticketTypes: {
+    name: string;
+    price: string | number;
+    quantity: number;
+    soldCount: number;
+    reservedCount: number;
+  }[];
+  organizer: { id: string; firstName: string | null; lastName: string | null };
+}
+
+export interface ApiEventList {
+  events: ApiEventListItem[];
+  /**
+   * Note the key: the backend returns `pagination`, not `meta`. The mobile
+   * app reads `meta` here and silently gets null.
+   */
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Payments
 // ---------------------------------------------------------------------------
