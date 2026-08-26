@@ -14,7 +14,22 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
+/**
+ * Absolute base for Open Graph and canonical URLs.
+ *
+ * This product is shared as links — a WhatsApp message, a flyer QR, a
+ * Click-to-WhatsApp ad — so the link preview is the shopfront. Without a
+ * `metadataBase` Next resolves OG URLs relatively and the preview quietly
+ * comes back with no image.
+ *
+ * Falls back to the production origin so a preview deploy without the env var
+ * still produces working absolute URLs rather than none.
+ */
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.crowdpazz.com";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "CrowdPass",
     template: "%s · CrowdPass",

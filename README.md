@@ -97,10 +97,24 @@ error.**
 
 ## Deploying
 
-- Set `NEXT_PUBLIC_API_URL` to the backend's `/api` origin.
-- Add this site's origin to the backend's **`CORS_ORIGINS`**. Without it the
-  browser blocks every client-side call and checkout silently shows no payment
-  options — the page looks fine and simply cannot sell anything.
+Production is **https://www.crowdpazz.com** (Vercel).
+
+> **The `www` is load-bearing.** `https://crowdpazz.com` 308-redirects to
+> `https://www.crowdpazz.com`, so `www` is the origin a browser actually
+> sends. Every place the origin is configured must use it.
+
+- `NEXT_PUBLIC_API_URL` — the backend's `/api` origin. This is the API, not
+  this site; it does not change when the site moves.
+- `NEXT_PUBLIC_SITE_URL` — this site's own origin, for `metadataBase`. Link
+  previews are the shopfront for a product shared over WhatsApp, and a
+  relative OG URL silently yields no image.
+- Backend **`CORS_ORIGINS`** and **`APP_URL`** must both contain this origin
+  (set in `backend-v2/render.yaml`). Two distinct failures if they don't:
+  - CORS missing → the browser blocks every client-side call. The page renders
+    perfectly and simply cannot sell anything.
+  - returnUrl allowlist missing → checkout still works, but every buyer lands
+    on the API's mobile callback page instead of `/checkout/callback`. This
+    one is silent; nothing errors.
 
 ## Event covers and IPFS
 
