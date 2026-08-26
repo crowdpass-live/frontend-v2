@@ -10,7 +10,7 @@ import {
   getPendingPurchaseServerSnapshot,
   subscribePendingPurchase,
 } from "@/lib/pending";
-import { CheckIcon } from "@/components/icons";
+import { Mascot } from "@/components/Mascot";
 import {
   Button,
   ButtonLink,
@@ -292,6 +292,16 @@ function Row({
   );
 }
 
+/**
+ * The illustration above the result copy.
+ *
+ * Success and failure use the mascot poses the design drew for exactly these
+ * moments. The waiting state does not: `mascot-pending` exists in the skill,
+ * but that file has its caption ("Your purchase is pending…") baked into the
+ * artwork, so it would sit above this page's own copy saying the same thing in
+ * different words. A spinner also *moves*, which is the honest signal for a
+ * screen that is actively polling. Swap it in if an art-only re-export lands.
+ */
 function StatusMark({
   tone,
   pulse,
@@ -299,25 +309,18 @@ function StatusMark({
   tone: "ok" | "warn" | "danger" | "neutral";
   pulse?: boolean;
 }) {
-  const tones = {
-    ok: "bg-ok/15 text-ok",
-    warn: "bg-warn/15 text-warn",
-    danger: "bg-danger/15 text-danger",
-    neutral: "bg-surface text-text-faint",
-  } as const;
+  if (tone === "ok") {
+    return <Mascot pose="success" height={180} className="mx-auto" />;
+  }
+  if (tone === "danger") {
+    return <Mascot pose="error" height={170} className="mx-auto" />;
+  }
+  if (tone === "neutral") {
+    return <Mascot pose="no-tickets" height={130} className="mx-auto" />;
+  }
   return (
-    <div
-      className={`mx-auto grid size-20 place-items-center rounded-full ${tones[tone]}`}
-    >
-      {tone === "ok" ? (
-        <CheckIcon width={36} height={36} strokeWidth={2.25} />
-      ) : tone === "danger" ? (
-        <span aria-hidden className="text-4xl leading-none">
-          ×
-        </span>
-      ) : (
-        <Spinner className={`size-8 ${pulse ? "" : "animate-none opacity-60"}`} />
-      )}
+    <div className="mx-auto grid size-20 place-items-center rounded-full bg-warn/15 text-warn">
+      <Spinner className={`size-8 ${pulse ? "" : "animate-none opacity-60"}`} />
     </div>
   );
 }

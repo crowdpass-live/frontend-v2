@@ -6,6 +6,7 @@ import { fetchTicketByReference } from "@/lib/crowdpass";
 import { formatDateTimeLong, money } from "@/lib/format";
 import { CalendarIcon, PinIcon } from "@/components/icons";
 import { Badge, ButtonLink, Card, Container } from "@/components/ui";
+import { Logo } from "@/components/Logo";
 import type { ApiTicket, TicketStatus } from "@/types/api";
 
 type Params = { reference: string };
@@ -102,6 +103,12 @@ export default async function TicketPage({
               <p className="font-mono text-label font-bold tracking-wide text-accent-deep">
                 {ticket.reference}
               </p>
+              {/* The mark on the white stub, the way a printed ticket carries
+               * the venue's. The mark is orange artwork rather than type, so
+               * it is fine on white — the *text* on this panel uses
+               * `accent-deep`, because the brand orange only clears ~3:1
+               * against white. */}
+              <Logo variant="mark" height={16} className="opacity-70" />
             </div>
           ) : (
             <div className="border-t border-border p-5">
