@@ -139,10 +139,34 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
-/** Screen-side padding + max width. One place so pages can't drift apart. */
-export function Shell({
+/**
+ * Screen-side padding + max width. One place so pages can't drift apart.
+ *
+ * Two widths, because the pages want different things of a large screen:
+ *
+ *   `reading` — a single column that stays comfortable to read and to fill in.
+ *     Checkout, the ticket, and the payment result never widen: a 1400px-wide
+ *     form is harder to complete than a 560px one, and the ticket is a card,
+ *     not a page.
+ *   `page`    — browse and event surfaces, which have genuine parallel content
+ *     (a grid of events; details beside a ticket panel) and earn the room.
+ *
+ * Padding steps up with the viewport so content never touches the edge on a
+ * phone and never hugs the frame on a desktop.
+ */
+export function Container({
+  size = "reading",
   className,
   ...props
-}: ComponentProps<"div">) {
-  return <div {...props} className={cx("mx-auto w-full max-w-[560px] px-6", className)} />;
+}: ComponentProps<"div"> & { size?: "reading" | "page" }) {
+  return (
+    <div
+      {...props}
+      className={cx(
+        "mx-auto w-full px-5 sm:px-6 lg:px-8",
+        size === "page" ? "max-w-6xl" : "max-w-[560px]",
+        className,
+      )}
+    />
+  );
 }

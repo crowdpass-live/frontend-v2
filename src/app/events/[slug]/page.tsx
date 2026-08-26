@@ -12,7 +12,7 @@ import {
 } from "@/lib/format";
 import { EventCover } from "@/components/EventCover";
 import { CalendarIcon, PinIcon } from "@/components/icons";
-import { Badge, ButtonLink, Card, SectionTitle, Shell } from "@/components/ui";
+import { Badge, ButtonLink, Card, SectionTitle, Container } from "@/components/ui";
 import type { ApiEvent, ApiTicketType } from "@/types/api";
 
 type Params = { slug: string };
@@ -167,14 +167,25 @@ export default async function EventDetailPage({
     .join(" ");
 
   return (
-    <main className="flex flex-1 flex-col pb-32">
-      <EventCover
-        src={event.coverImage}
-        title={event.name}
-        category={titleCase(event.category)}
-      />
+    // `pb-32` clears the fixed mobile purchase bar; from `lg` the bar is gone
+    // and the padding with it.
+    <main className="flex flex-1 flex-col pb-32 lg:pb-16">
+      {/* Full-bleed on a phone, an inset rounded hero once there is a page
+       * around it — a cover running edge-to-edge on a 1440px monitor reads as
+       * a banner ad rather than as part of the page. */}
+      <Container size="page" className="px-0 sm:px-6 lg:px-8 lg:pt-8">
+        <EventCover
+          src={event.coverImage}
+          title={event.name}
+          category={titleCase(event.category)}
+        />
+      </Container>
 
-      <Shell className="flex flex-col gap-8 pt-8">
+      <Container
+        size="page"
+        className="grid grid-cols-1 gap-8 pt-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-12 lg:pt-12"
+      >
+        <div className="flex flex-col gap-8 lg:gap-10">
         {/* When + where */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
@@ -221,20 +232,6 @@ export default async function EventDetailPage({
           </section>
         ) : null}
 
-        {/* Tickets */}
-        <section className="flex flex-col gap-3">
-          <SectionTitle>Tickets</SectionTitle>
-          {tiers.length === 0 ? (
-            <Card className="p-4 text-body text-text-dim">
-              No tickets have been published for this event yet.
-            </Card>
-          ) : (
-            tiers.map((tier) => (
-              <TicketTierRow key={tier.id} tier={tier} currency={currency} />
-            ))
-          )}
-        </section>
-
         {/* Good to know */}
         <section className="flex flex-col gap-3">
           <SectionTitle>Good to know</SectionTitle>
@@ -274,12 +271,56 @@ export default async function EventDetailPage({
             {organizer ? <InfoRow label="Organizer">{organizer}</InfoRow> : null}
           </Card>
         </section>
-      </Shell>
+        </div>
 
-      {/* Sticky purchase footer. Fixed rather than in-flow so it survives a
-       * long description without the buyer having to scroll back for the CTA. */}
-      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-bg/95 backdrop-blur">
-        <Shell className="flex items-center gap-4 py-4">
+        {/* Ticket rail. In the flow on a phone (below the details, above the
+         * fixed bar); a sticky sidebar from `lg`, where the buyer can read the
+         * description and still see prices and the CTA without scrolling. */}
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
+          <section className="flex flex-col gap-3">
+            <SectionTitle>Tickets</SectionTitle>
+            {tiers.length === 0 ? (
+              <Card className="p-4 text-body text-text-dim">
+                No tickets have been published for this event yet.
+              </Card>
+            ) : (
+              tiers.map((tier) => (
+                <TicketTierRow key={tier.id} tier={tier} currency={currency} />
+              ))
+            )}
+          </section>
+
+          {/* The desktop CTA. Hidden below `lg`, where the fixed bar owns it —
+           * two visible "Get tickets" buttons on one screen is a worse answer
+           * than one in the right place for each layout. */}
+          <div className="hidden lg:flex lg:flex-col lg:gap-3">
+            {canBuy ? (
+              <>
+                <ButtonLink
+                  href={`/events/${event.slug}/checkout`}
+                  className="w-full"
+                >
+                  Get tickets
+                </ButtonLink>
+                <p className="text-center text-helper text-text-faint">
+                  {from !== null ? `From ${money(from, currency)} · ` : ""}
+                  No account needed
+                </p>
+              </>
+            ) : (
+              <span className="inline-flex h-14 w-full items-center justify-center rounded-control bg-surface px-6 text-body font-bold text-text-faint">
+                {blockedReason}
+              </span>
+            )}
+          </div>
+        </aside>
+      </Container>
+
+      {/* Mobile purchase bar. Fixed rather than in-flow so it survives a long
+       * description without the buyer having to scroll back for the CTA. The
+       * desktop equivalent is the sticky rail above. */}
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur lg:hidden">
+        <Container className="flex items-center gap-4 py-4">
           <div className="min-w-0 flex-1">
             <p className="text-helper text-text-faint">Tickets</p>
             <p className="truncate text-body font-bold text-text">
@@ -298,7 +339,7 @@ export default async function EventDetailPage({
               Unavailable
             </span>
           )}
-        </Shell>
+        </Container>
       </div>
     </main>
   );

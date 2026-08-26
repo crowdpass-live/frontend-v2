@@ -5,14 +5,34 @@ a shared link opens an event, and someone with no account walks out with a
 ticket.
 
 ```
+/                         discover            search · category · location
 /events/[slug]            event detail        server-rendered, OG-scrapeable
 /events/[slug]/checkout   guest checkout      tier · quantity · details · rail
 /checkout/callback        payment return      polls settlement → 3 states
 /tickets/[reference]      the ticket + QR     public, no account needed
 ```
 
-Browse/discover, auth, and the organizer dashboard are **not** in this build.
-`/` is a placeholder so those routes have a parent.
+Auth and the organizer dashboard are **not** in this build.
+
+## Discover (`/`)
+
+Filters live in the URL (`?search=&category=&location=&page=`), so a filtered
+view is shareable, survives the back button, and is fetched server-side.
+
+Two things it has to do that the API does not:
+
+**Exclude past events.** `GET /events` does *not* filter them out and sorts by
+`startTime` ascending — so an unfiltered first page is the **oldest** events in
+the database, whose sales closed months ago. `fetchUpcomingEvents()` passes
+`startDate=now`. Never call `fetchEvents()` bare for a browse surface.
+
+**Reject unknown categories.** The backend 400s on an enum miss, so a
+hand-edited `?category=` is validated against the enum and dropped if it
+doesn't match, rather than breaking the page.
+
+The category chips use the real `EventCategory` enum, not the design's row —
+`10-discover-home.png` shows a "Weddings" chip, which is not a category the API
+accepts and would filter to nothing forever (design open issue #6).
 
 ## Running it
 
@@ -81,6 +101,65 @@ error.**
 - Add this site's origin to the backend's **`CORS_ORIGINS`**. Without it the
   browser blocks every client-side call and checkout silently shows no payment
   options — the page looks fine and simply cannot sell anything.
+
+## Event covers and IPFS
+
+Covers are uploaded to **Pinata** (see the mobile app's `src/lib/ipfs.js`), but
+the URL stored on the event points at `ipfs.io` — a different gateway that has
+to re-fetch the content over the IPFS network, and which currently returns
+**504** for CrowdPass CIDs. Because that error body is `text/plain`, Chrome then
+refuses to render it as an image (`ERR_BLOCKED_BY_RESPONSE.NotSameOrigin`). The
+net effect was that every event cover was broken.
+
+`resolveImageUrl()` (`src/lib/images.ts`) rewrites the gateway host onto
+`NEXT_PUBLIC_IPFS_GATEWAY`, leaving the CID untouched. The same CIDs serve fine
+from Pinata, where they are already pinned.
+
+For production, point it at a **dedicated** Pinata gateway
+(`<name>.mypinata.cloud`) — the shared public one is rate-limited. The real fix
+is upstream: store a working URL (or a bare CID) on the event, so every client
+isn't patching this independently.
+
+`CoverImage` also has to survive a dead or slow URL regardless of gateway: the
+stripe placeholder is always painted underneath, and `onError` drops the
+`<img>`. Without the backdrop, a slow gateway shows the browser's broken-image
+glyph for the whole wait.
+
+## Responsive layout
+
+Mobile-first, but the desktop layouts are designed, not stretched. Two container
+widths (`Container size="reading" | "page"`, `src/components/ui.tsx`):
+
+- **`reading`** (560px) — checkout form, ticket, payment result, 404. These
+  never widen: a 1400px-wide form is harder to fill in than a 560px one, and a
+  ticket is a card, not a page.
+- **`page`** (1152px) — discover and the event page, which have genuine
+  parallel content and earn the room.
+
+What changes where:
+
+| | phone | `sm` 640 | `lg` 1024 |
+|---|---|---|---|
+| Discover list | compact rows | 2-col card grid | 3-col |
+| Discover filters | search → chips → location | — | search + location on one row |
+| Featured card | 4:3 | 16:9 | 21:9, content on one row |
+| Event page | single column + fixed CTA bar | — | details + **sticky ticket rail** |
+| Checkout | single column + fixed pay bar | — | form + **sticky order summary** |
+
+Two rules held throughout:
+
+**One element, two positions — never two elements.** The checkout summary is a
+fixed bottom bar on a phone and a sticky sidebar card from `lg`, but it is the
+same node with responsive classes. Rendering it twice would put two submit
+buttons in one form, and the browser treats the first as the implicit submit on
+Enter — so the button you see and the button that fires could differ by
+breakpoint. The event page's CTA is the one deliberate exception (a `Link`, not
+a submit), and there each variant is explicitly hidden at the other breakpoint.
+
+**Only the chip strip may overflow.** The category row scrolls horizontally on
+narrow screens inside its own `overflow-x-auto`; nothing else is allowed past
+the viewport edge. `scratchpad/e2e-responsive.mjs` asserts this at seven widths
+from 320px to 1728px, ignoring elements inside a scroll container.
 
 ## Design
 

@@ -6,7 +6,7 @@ import { fetchEventBySlug } from "@/lib/crowdpass";
 import { formatDate, saleWindow } from "@/lib/format";
 import { CheckoutForm } from "./CheckoutForm";
 import { ArrowLeftIcon } from "@/components/icons";
-import { ButtonLink, Card, Shell } from "@/components/ui";
+import { ButtonLink, Card, Container } from "@/components/ui";
 
 type Params = { slug: string };
 
@@ -40,8 +40,13 @@ export default async function CheckoutPage({
   const blocked = canBuy ? null : `${reason}.`;
 
   return (
-    <main className="flex flex-1 flex-col pb-40">
-      <Shell className="flex flex-col gap-8 pt-6">
+    // `pb-40` clears the fixed mobile pay bar; from `lg` the summary moves
+    // into the sidebar and the padding is no longer needed.
+    <main className="flex flex-1 flex-col pb-40 lg:pb-16">
+      <Container
+        size={blocked ? "reading" : "page"}
+        className="flex flex-col gap-8 pt-6 lg:pt-12"
+      >
         <header className="flex items-center gap-3">
           <Link
             href={`/events/${event.slug}`}
@@ -54,7 +59,7 @@ export default async function CheckoutPage({
         </header>
 
         <div>
-          <p className="text-title font-bold text-text-dim text-balance">
+          <p className="text-title font-bold text-text-dim text-balance lg:text-section">
             {event.name}
           </p>
           <p className="mt-1 text-label text-text-faint">
@@ -77,7 +82,7 @@ export default async function CheckoutPage({
         ) : (
           <CheckoutForm event={event} />
         )}
-      </Shell>
+      </Container>
     </main>
   );
 }

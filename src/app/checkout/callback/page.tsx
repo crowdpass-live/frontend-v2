@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CallbackClient } from "./CallbackClient";
-import { Shell, Spinner } from "@/components/ui";
+import { Container, Spinner } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Confirming payment",
@@ -17,13 +17,13 @@ export const metadata: Metadata = {
  */
 export default function CheckoutCallbackPage() {
   return (
-    <main className="flex flex-1 flex-col justify-center py-16">
+    <main className="flex flex-1 flex-col justify-center py-16 lg:py-24">
       <Suspense
         fallback={
-          <Shell className="flex flex-col items-center gap-4 text-center">
+          <Container className="flex flex-col items-center gap-4 text-center">
             <Spinner className="size-8 text-accent" />
             <p className="text-body text-text-dim">Confirming your payment…</p>
-          </Shell>
+          </Container>
         }
       >
         <CallbackClient />
