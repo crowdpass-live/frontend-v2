@@ -1,26 +1,98 @@
 @import "tailwindcss";
 
+/* CrowdPass design tokens.
+ *
+ * Ported 1:1 from the mobile app's `src/theme.js`, which was measured off the
+ * Figma exports in the crowdpass skill (assets/design/mobile/, delivered
+ * 2026-08-15). The PNGs are the source of truth — when they change, re-measure
+ * there and mirror the change here so web and mobile stay one brand.
+ *
+ * Nothing in a component should hardcode a hex. The design is still ~75%
+ * complete and will keep moving; a token change is supposed to repaint the
+ * site, not trigger a sweep.
+ *
+ * The app is dark-only by deliberate design choice — there is no light
+ * counterpart in Figma — so these sit on bare `:root` with no media query.
+ */
+@theme {
+  --color-bg: #08090d; /* near-black, faintly blue — not pure #000 */
+  --color-surface: #1a1a1a; /* cards, inputs, chips, secondary buttons */
+  --color-surface-strong: #232323; /* raised surface / pressed chip */
+  --color-border: #2e2e2c; /* 1px card + input border; very low contrast, intentional */
+  --color-border-strong: #3a3a38;
+
+  --color-text: #ffffff; /* primary */
+  --color-text-dim: #a8a8a8; /* secondary, labels, helper */
+  --color-text-faint: #787879; /* tertiary, placeholders, disabled */
+
+  --color-accent: #fe5722; /* brand orange — exact match to the logo mark */
+  --color-accent-hi: #fa6533; /* lighter orange: gradient top / pressed */
+  --color-accent-deep: #c43c11; /* for use ON LIGHT surfaces — brand orange only clears ~3:1 on white */
+  --color-accent-tint: #261210; /* maroon-tinted surface */
+  --color-accent-tint-border: #401a12;
+
+  /* Text on an orange button is BLACK, not white. This is the design's most
+   * easily-missed rule and it appears on every primary button in the app. */
+  --color-ink: #000000;
+
+  --color-ok: #43a047; /* Paid / Live / Valid ticket */
+  --color-warn: #e5bf4b; /* Pending */
+  --color-info: #227afe; /* Checked in */
+  --color-info-tint: #1b2635;
+  --color-danger: #f2281f; /* failed purchase */
+
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Type ramp (§2 of the design spec). The exports are @1x, so these are
+   * reliable for hierarchy but were not lifted as exact point sizes. */
+  --text-display: 2.25rem;
+  --text-display--line-height: 2.625rem;
+  --text-display--letter-spacing: -0.025em;
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.75rem;
+  --text-title--letter-spacing: -0.018em;
+  --text-section: 1.125rem;
+  --text-section--line-height: 1.5rem;
+  --text-section--letter-spacing: -0.011em;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.375rem;
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.125rem;
+  --text-helper: 0.75rem;
+  --text-helper--line-height: 1.0625rem;
+
+  --radius-control: 14px; /* buttons + inputs */
+  --radius-card: 16px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  /* Nigerian market is mobile-first on 4G (§9) — never let a wide table or
+   * cover image push the whole page sideways. */
+  overflow-x: hidden;
+}
+
+/* The focus ring has to clear a near-black background, so it is the accent
+ * rather than the browser default blue, which vanishes against #08090D. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
