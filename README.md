@@ -198,6 +198,17 @@ a `wa.me` link (desktop). The last one cannot carry the image: WhatsApp's URL
 scheme is text-only. That is why Download sits beside Share rather than in a
 menu — attaching the saved picture is the desktop workaround.
 
+> **Do not move the image render into the click handler.** `navigator.share()`
+> needs transient user activation, and iOS Safari requires the call to happen
+> in the same task as the tap — an intervening `await` gets you
+> `NotAllowedError` and no share sheet. The PNG is therefore rendered on mount
+> during idle time and both buttons stay disabled until it exists, so the
+> handlers can call `share()` and `click()` synchronously.
+>
+> Chromium will not catch a regression here: it keeps activation live for 5s
+> across awaits, so the broken pattern passes locally and fails only on real
+> iPhones. Measured ready ~1.2–1.6s after navigation on a 4×-throttled phone.
+
 **Celebration** fires only on `?celebrate=1`, set by the payment-result page and
 the free-ticket path. A revisit or refresh gets a calm page. Confetti is CSS on
 `transform`/`opacity` only, unmounts after 3.4s, and is hidden under

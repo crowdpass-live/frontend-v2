@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Spinner, cx } from "./ui";
 import {
   renderTicketImage,
@@ -25,25 +25,38 @@ function WhatsAppIcon() {
   );
 }
 
-type Status = "idle" | "working" | "done" | "error";
+type NavigatorWithShare = Navigator & {
+  canShare?: (data: ShareData) => boolean;
+};
 
 /**
  * Save the ticket as an image, and hand it to WhatsApp.
  *
- * Both actions share one rendered PNG, produced by `renderTicketImage`. The
- * sharing story differs per platform and there is no single API that covers
- * it, so this degrades in three steps:
+ * ## Why the image is rendered before anyone taps
  *
- *   1. `navigator.share` **with the file** — the good path on iOS and Android.
- *      The buyer picks WhatsApp from the system sheet and the image goes into
- *      the chat.
- *   2. `navigator.share` with a link — some browsers expose sharing but refuse
- *      files (`canShare({files})` is false).
- *   3. A `wa.me` link with the ticket URL — desktop, and anything else. This
- *      cannot carry the image: WhatsApp's URL scheme takes text only, so the
- *      buyer gets a link to this page rather than a picture. Downloading and
- *      attaching is the workaround, which is why Download is a peer action
- *      rather than hidden in a menu.
+ * `navigator.share()` requires **transient user activation**, and on iOS
+ * Safari an `await` between the tap and the call consumes it — the share sheet
+ * never opens and you get `NotAllowedError` instead. Rendering the card inside
+ * the click handler (the obvious way to write this) therefore fails on iPhone,
+ * which is a large share of the audience for a Nigerian event product.
+ *
+ * So the PNG is rendered once on mount, during idle time, and both buttons
+ * stay disabled until it exists. By the time anyone has read the page and
+ * reached for a button it is ready, and the handlers below call `share()` and
+ * `click()` **synchronously** — no `await` before either.
+ *
+ * ## What actually happens per platform
+ *
+ * - **Phone with file sharing** (iOS 15+, Android Chrome): the system sheet
+ *   opens with the PNG attached. WhatsApp is one tap away, and so is
+ *   "Save Image" — which is the real way to get a picture into an iPhone's
+ *   photo library, since `<a download>` there is inconsistent.
+ * - **Browser that shares links but not files:** the sheet opens with a link
+ *   to this page.
+ * - **Desktop:** a `wa.me` link. It carries text only — WhatsApp's URL scheme
+ *   cannot attach an image — so the buyer gets a link, and Download is the way
+ *   to get the picture itself. That is why Download is a peer button and not
+ *   hidden in a menu.
  */
 export function TicketActions({
   ticket,
@@ -52,92 +65,108 @@ export function TicketActions({
   ticket: TicketImageInput;
   shareUrl: string;
 }) {
-  const [download, setDownload] = useState<Status>("idle");
-  const [share, setShare] = useState<Status>("idle");
+  const [file, setFile] = useState<File | null>(null);
+  const [renderFailed, setRenderFailed] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Render once, off the critical path. `requestIdleCallback` keeps a low-end
+  // Android from spending its first frames on a canvas the buyer is not
+  // looking at yet; the timeout stops it being deferred forever.
+  useEffect(() => {
+    let alive = true;
+    const run = () => {
+      renderTicketImage(ticket)
+        .then((blob) => {
+          if (!alive) return;
+          setFile(
+            new File([blob], ticketFileName(ticket.eventName, ticket.reference), {
+              type: "image/png",
+            }),
+          );
+        })
+        .catch(() => alive && setRenderFailed(true));
+    };
+
+    const ric = (
+      window as unknown as {
+        requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      }
+    ).requestIdleCallback;
+    const id = ric ? ric(run, { timeout: 1500 }) : window.setTimeout(run, 200);
+    return () => {
+      alive = false;
+      const cic = (
+        window as unknown as { cancelIdleCallback?: (h: number) => void }
+      ).cancelIdleCallback;
+      if (ric && cic) cic(id);
+      else window.clearTimeout(id);
+    };
+  }, [ticket]);
 
   const shareText = `My ticket for ${ticket.eventName} — ${shareUrl}`;
 
-  const onDownload = async () => {
+  /** Synchronous by design — see the note above. */
+  const onDownload = () => {
+    if (!file) return;
     setError(null);
-    setDownload("working");
-    try {
-      const blob = await renderTicketImage(ticket);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = ticketFileName(ticket.eventName, ticket.reference);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      // Revoked on a delay: Safari aborts the save if the object URL is
-      // released in the same tick as the click.
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      setDownload("done");
-      setTimeout(() => setDownload("idle"), 2500);
-    } catch (err) {
-      setDownload("error");
-      setError(
-        err instanceof Error
-          ? `Could not save the image: ${err.message}`
-          : "Could not save the image.",
-      );
-    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    // Safari on iOS ignores a detached anchor.
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoked late: Safari aborts the save if the object URL is released in
+    // the same tick as the click.
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2500);
   };
 
-  const onShare = async () => {
+  /** Also synchronous: `share()` is reached with user activation intact. */
+  const onShare = () => {
     setError(null);
-    setShare("working");
-    try {
-      const nav = navigator as Navigator & {
-        canShare?: (data: ShareData) => boolean;
-      };
+    const nav = navigator as NavigatorWithShare;
 
-      if (typeof nav.share === "function") {
-        const blob = await renderTicketImage(ticket);
-        const file = new File(
-          [blob],
-          ticketFileName(ticket.eventName, ticket.reference),
-          { type: "image/png" },
-        );
+    const onShareError = (err: unknown) => {
+      // Dismissing the sheet throws AbortError. That is a normal outcome.
+      if (err instanceof Error && err.name === "AbortError") return;
+      setError("Couldn't open the share sheet — try Download instead.");
+    };
 
-        if (nav.canShare?.({ files: [file] })) {
-          await nav.share({
-            files: [file],
-            title: ticket.eventName,
-            text: `My ticket for ${ticket.eventName}`,
-          });
-          setShare("idle");
-          return;
-        }
+    if (file && typeof nav.share === "function" && nav.canShare?.({ files: [file] })) {
+      nav
+        .share({
+          files: [file],
+          title: ticket.eventName,
+          text: `My ticket for ${ticket.eventName}`,
+        })
+        .catch(onShareError);
+      return;
+    }
 
-        await nav.share({
+    if (typeof nav.share === "function") {
+      nav
+        .share({
           title: ticket.eventName,
           text: `My ticket for ${ticket.eventName}`,
           url: shareUrl,
-        });
-        setShare("idle");
-        return;
-      }
-
-      // No Web Share at all — desktop. Straight to WhatsApp with a link.
-      window.open(
-        `https://wa.me/?text=${encodeURIComponent(shareText)}`,
-        "_blank",
-        "noopener,noreferrer",
-      );
-      setShare("idle");
-    } catch (err) {
-      // The buyer dismissing the system share sheet throws AbortError. That is
-      // a normal outcome, not a failure worth shouting about.
-      if (err instanceof Error && err.name === "AbortError") {
-        setShare("idle");
-        return;
-      }
-      setShare("error");
-      setError("Could not open the share sheet. Try downloading instead.");
+        })
+        .catch(onShareError);
+      return;
     }
+
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(shareText)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
   };
+
+  // With no image, sharing a link still works; downloading does not.
+  const preparing = !file && !renderFailed;
 
   return (
     <div className="flex flex-col gap-3">
@@ -147,23 +176,21 @@ export function TicketActions({
           variant="secondary"
           className="w-full"
           onClick={onDownload}
-          disabled={download === "working"}
+          disabled={!file}
+          aria-busy={preparing}
         >
-          {download === "working" ? (
-            <Spinner />
-          ) : (
-            <DownloadIcon />
-          )}
-          {download === "done" ? "Saved" : "Download"}
+          {preparing ? <Spinner /> : <DownloadIcon />}
+          {saved ? "Saved" : "Download"}
         </Button>
 
         <Button
           type="button"
           className="w-full"
           onClick={onShare}
-          disabled={share === "working"}
+          disabled={preparing}
+          aria-busy={preparing}
         >
-          {share === "working" ? <Spinner /> : <WhatsAppIcon />}
+          {preparing ? <Spinner /> : <WhatsAppIcon />}
           Share
         </Button>
       </div>
@@ -175,7 +202,10 @@ export function TicketActions({
         )}
         role={error ? "alert" : undefined}
       >
-        {error ?? "Saves as a picture you can send to anyone."}
+        {error ??
+          (renderFailed
+            ? "Couldn't build the ticket image. Share still sends a link, and your reference works at the door."
+            : "Share sends the ticket as a picture — or use it to save it to your photos.")}
       </p>
     </div>
   );
