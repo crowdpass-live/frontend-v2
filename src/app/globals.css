@@ -87,6 +87,78 @@ body {
   border-radius: 4px;
 }
 
+/* The brand mark's loading pulse (see components/BrandSpinner.tsx).
+ *
+ * Percentages are the mobile timings mapped onto the 1470ms cycle: lift over
+ * 300ms (20.4%), settle over 520ms (to 55.8%), then hold dim until the
+ * sequence restarts. Keeping the tail means the lit band travels round the
+ * mark once per cycle rather than every block shimmering at once.
+ *
+ * Opacity only, so it stays on the compositor — an SVG `fill` transition
+ * would repaint on every frame. */
+@keyframes brand-pulse {
+  0% {
+    opacity: 0.22;
+  }
+  20.4% {
+    opacity: 1;
+  }
+  55.8% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0.22;
+  }
+}
+
+.brand-pulse {
+  animation-name: brand-pulse;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+/* Someone who asked the OS for less motion is not served by a slower version
+ * of the same pulse — they get a still, whole mark. Matches mobile, which
+ * checks AccessibilityInfo.isReduceMotionEnabled and sets every block LIT. */
+@media (prefers-reduced-motion: reduce) {
+  .brand-pulse {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Skeleton shimmer for content whose shape is known before its data arrives.
+ * A sweep rather than a pulse: a pulsing block reads as "broken", a sweep
+ * reads as "coming". */
+@keyframes skeleton-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton {
+  background-color: var(--color-surface);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-surface-strong) 90%, white) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background-image: none;
+  }
+}
+
 /* Confetti for the just-paid ticket (see components/Celebration.tsx). Falls
  * from above the viewport, drifts sideways and tumbles, fading at the end.
  * Only `transform` and `opacity` animate, so it stays on the compositor. */
