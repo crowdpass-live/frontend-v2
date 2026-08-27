@@ -175,6 +175,34 @@ narrow screens inside its own `overflow-x-auto`; nothing else is allowed past
 the viewport edge. `scratchpad/e2e-responsive.mjs` asserts this at seven widths
 from 320px to 1728px, ignoring elements inside a scroll container.
 
+## The ticket page
+
+**`ticket.qrCode` is not an image.** The backend stores the compact signed
+token (`htv1.<payload>.<sig>`, see `QrCodeService`) and every client encodes it
+itself — mobile via `react-native-qrcode-svg`, web via `TicketQr`. Passing that
+token to an `<img src>` renders a broken image. Encoding client-side also keeps
+the canvas untainted, which is what makes the download work at all.
+
+**Download** renders a 1080×1620 share card on a canvas (`lib/ticket-image.ts`)
+rather than screenshotting the DOM. html-to-image and html2canvas re-implement
+CSS layout and are reliably wrong about exactly what this card is made of —
+webfonts, gradients, `object-fit`. Drawing it means the output is identical on
+every browser and sized for sharing rather than for whatever viewport the buyer
+had. A test decodes the QR back out of the rendered PNG with `jsQR` to prove a
+door scanner can read the picture a buyer forwards.
+
+**Share** degrades in three steps, because no one API covers this:
+`navigator.share` with the file (iOS/Android — the image lands in the chat) →
+`navigator.share` with a link (browsers that expose sharing but refuse files) →
+a `wa.me` link (desktop). The last one cannot carry the image: WhatsApp's URL
+scheme is text-only. That is why Download sits beside Share rather than in a
+menu — attaching the saved picture is the desktop workaround.
+
+**Celebration** fires only on `?celebrate=1`, set by the payment-result page and
+the free-ticket path. A revisit or refresh gets a calm page. Confetti is CSS on
+`transform`/`opacity` only, unmounts after 3.4s, and is hidden under
+`prefers-reduced-motion`.
+
 ## Brand assets
 
 Copied from the crowdpass skill (`assets/design/`) and the mobile app

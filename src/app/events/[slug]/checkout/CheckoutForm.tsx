@@ -255,7 +255,7 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
 
       // Free events settle in the same write — no gateway round trip.
       if (result.free && first) {
-        router.push(`/tickets/${first}`);
+        router.push(`/tickets/${first}?celebrate=1`);
         return;
       }
 

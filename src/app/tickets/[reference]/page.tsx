@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { fetchTicketByReference } from "@/lib/crowdpass";
-import { formatDateTimeLong, money } from "@/lib/format";
+import { formatDate, formatDateTimeLong, formatTime, money } from "@/lib/format";
 import { CalendarIcon, PinIcon } from "@/components/icons";
 import { Badge, ButtonLink, Card, Container } from "@/components/ui";
 import { Logo } from "@/components/Logo";
+import { TicketQr } from "@/components/TicketQr";
+import { TicketActions } from "@/components/TicketActions";
+import { Celebration } from "@/components/Celebration";
+import { Mascot } from "@/components/Mascot";
 import type { ApiTicket, TicketStatus } from "@/types/api";
 
 type Params = { reference: string };
+type Search = { celebrate?: string };
 
 export const metadata: Metadata = {
   title: "Your ticket",
@@ -52,10 +56,16 @@ const STATUS: Record<
 
 export default async function TicketPage({
   params,
+  searchParams,
 }: {
   params: Promise<Params>;
+  searchParams: Promise<Search>;
 }) {
   const { reference } = await params;
+  // Set only by the payment-result page, so the burst fires once on arrival
+  // from checkout and never again on a revisit or a refresh.
+  const { celebrate } = await searchParams;
+  const justPaid = celebrate === "1";
 
   let ticket: ApiTicket;
   try {
@@ -72,15 +82,34 @@ export default async function TicketPage({
   // a refunded ticket invites an argument at the door.
   const showQr = ticket.status === "CONFIRMED" && !!ticket.qrCode;
 
+  // Absolute, because it is handed to WhatsApp and the native share sheet.
+  const siteUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.crowdpazz.com"
+  ).replace(/\/+$/, "");
+  const shareUrl = `${siteUrl}/tickets/${encodeURIComponent(ticket.reference)}`;
+
   return (
     <main className="flex flex-1 flex-col py-8 lg:py-16">
-      <Container className="flex flex-col gap-6">
-        <header className="flex items-center justify-between gap-4">
-          <h1 className="text-title font-bold text-text">Your ticket</h1>
-          <Badge tone={status.tone}>{status.label}</Badge>
-        </header>
+      {justPaid && showQr ? <Celebration /> : null}
 
-        <Card className="overflow-hidden">
+      <Container className="flex flex-col gap-6">
+        {justPaid && showQr ? (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Mascot pose="success" height={150} />
+            <h1 className="text-display font-bold text-text">You&apos;re in</h1>
+            <p className="max-w-sm text-body text-text-dim">
+              Your ticket is confirmed. Save it or send it to whoever is coming
+              with you.
+            </p>
+          </div>
+        ) : (
+          <header className="flex items-center justify-between gap-4">
+            <h1 className="text-title font-bold text-text">Your ticket</h1>
+            <Badge tone={status.tone}>{status.label}</Badge>
+          </header>
+        )}
+
+        <Card className={`overflow-hidden ${justPaid ? "ticket-enter" : ""}`}>
           <div className="flex flex-col gap-1 p-5">
             <p className="text-section font-bold text-text text-balance">
               {event.name}
@@ -92,14 +121,7 @@ export default async function TicketPage({
             <div className="flex flex-col items-center gap-4 border-t border-border bg-white px-5 py-6 sm:py-8">
               {/* On white, deliberately: a QR needs light quiet-zone contrast
                * to scan reliably, and the scanner has under 2s to read it. */}
-              <Image
-                src={ticket.qrCode!}
-                alt={`QR code for ticket ${ticket.reference}`}
-                width={220}
-                height={220}
-                unoptimized
-                className="size-[220px] object-contain"
-              />
+              <TicketQr token={ticket.qrCode!} size={220} />
               <p className="font-mono text-label font-bold tracking-wide text-accent-deep">
                 {ticket.reference}
               </p>
@@ -147,10 +169,18 @@ export default async function TicketPage({
         </Card>
 
         {showQr ? (
-          <p className="text-center text-helper text-text-faint">
-            Screenshot this or keep the link handy — it works offline at the
-            door.
-          </p>
+          <TicketActions
+            shareUrl={shareUrl}
+            ticket={{
+              eventName: event.name,
+              tierName: ticket.ticketType.name,
+              whenLabel: `${formatDate(event.startTime)} · ${formatTime(event.startTime)}`,
+              whereLabel: where,
+              holder: ticket.buyerName ?? "",
+              reference: ticket.reference,
+              qrToken: ticket.qrCode!,
+            }}
+          />
         ) : null}
 
         <ButtonLink

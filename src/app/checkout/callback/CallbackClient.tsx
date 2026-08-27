@@ -181,7 +181,14 @@ export function CallbackClient() {
           </p>
         </div>
         {ticketReference ? (
-          <ButtonLink href={`/tickets/${ticketReference}`} className="w-full">
+          // `celebrate=1` fires the confetti once, on arrival from checkout.
+          // The ticket page owns the celebration rather than this one so a
+          // buyer who lands here again later gets a calm page, and so the
+          // party happens on the screen they will actually keep.
+          <ButtonLink
+            href={`/tickets/${ticketReference}?celebrate=1`}
+            className="w-full"
+          >
             View my ticket
           </ButtonLink>
         ) : (
