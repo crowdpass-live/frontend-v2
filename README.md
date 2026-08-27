@@ -44,6 +44,14 @@ pnpm dev            # http://localhost:3000
 `NEXT_PUBLIC_API_URL` points at the backend, including the `/api` prefix the
 NestJS app sets globally. Defaults to the deployed backend; see `.env.example`.
 
+> **Local dev against the deployed API needs `http://localhost:3000` in the
+> backend's `CORS_ORIGINS`.** Now that production is locked to crowdpazz.com,
+> browser calls from localhost are blocked — checkout renders but shows no
+> payment methods, because `GET /payments/methods` never returns. The same
+> omission makes `returnUrl` fall back to the API callback page locally, since
+> `CORS_ORIGINS` is also the returnUrl allowlist. Either add localhost there or
+> run the backend locally.
+
 ## How the purchase actually works
 
 ```
@@ -176,6 +184,24 @@ the viewport edge. `scratchpad/e2e-responsive.mjs` asserts this at seven widths
 from 320px to 1728px, ignoring elements inside a scroll container.
 
 ## The ticket page
+
+**A confirmed ticket often has no QR yet.** `qrCode` is written by
+`MintFinalizerService.issueQrAndNotify`, which needs the `tokenId` from the
+on-chain mint receipt — and the mint queue retries 5× with exponential backoff
+from 10s. So between "payment settled" and "QR exists" there is a real window
+of seconds to minutes, and a real possibility it never closes.
+
+`TicketCredential` owns that window: it polls `GET /tickets/:reference` with
+backoff, shows what is actually happening, and swaps in the QR + Download +
+Share the moment the mint lands — no reload. Treating `CONFIRMED && qrCode` as
+the single "is this ticket real" test hides the QR *and* both buttons during
+the wait while still promising "Show this QR code at the door", which is what
+buyers were hitting.
+
+The copy leans on a fact worth knowing: **check-in does not need the QR.**
+`verifyTicket` and `checkIn` both look the ticket up by `reference`, and the
+scanner app has manual reference entry. A buyer whose mint is slow still gets
+in, so the reference is shown large while the QR is pending.
 
 **`ticket.qrCode` is not an image.** The backend stores the compact signed
 token (`htv1.<payload>.<sig>`, see `QrCodeService`) and every client encodes it

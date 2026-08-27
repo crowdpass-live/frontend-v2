@@ -5,9 +5,7 @@ import { fetchTicketByReference } from "@/lib/crowdpass";
 import { formatDate, formatDateTimeLong, formatTime, money } from "@/lib/format";
 import { CalendarIcon, PinIcon } from "@/components/icons";
 import { Badge, ButtonLink, Card, Container } from "@/components/ui";
-import { Logo } from "@/components/Logo";
-import { TicketQr } from "@/components/TicketQr";
-import { TicketActions } from "@/components/TicketActions";
+import { TicketCredential } from "@/components/TicketCredential";
 import { Celebration } from "@/components/Celebration";
 import { Mascot } from "@/components/Mascot";
 import type { ApiTicket, TicketStatus } from "@/types/api";
@@ -30,7 +28,9 @@ const STATUS: Record<
   CONFIRMED: {
     label: "Valid",
     tone: "ok",
-    note: "Show this QR code at the door.",
+    // Only used by the non-CONFIRMED branch below; TicketCredential owns the
+    // confirmed case, including the wait before the QR is minted.
+    note: "Show this at the door.",
   },
   PENDING: {
     label: "Pending payment",
@@ -78,9 +78,11 @@ export default async function TicketPage({
   const status = STATUS[ticket.status] ?? STATUS.PENDING;
   const event = ticket.event;
   const where = [event.venue, event.location].filter(Boolean).join(", ");
-  // Only a confirmed, unused ticket has a QR worth showing. Rendering one for
-  // a refunded ticket invites an argument at the door.
-  const showQr = ticket.status === "CONFIRMED" && !!ticket.qrCode;
+  // A confirmed ticket gets the credential panel — which renders the QR when
+  // it exists and waits for the mint when it does not. Anything else (pending
+  // payment, cancelled, refunded, already used) gets a plain status note;
+  // rendering a QR for a refunded ticket invites an argument at the door.
+  const isConfirmed = ticket.status === "CONFIRMED";
 
   // Absolute, because it is handed to WhatsApp and the native share sheet.
   const siteUrl = (
@@ -90,10 +92,10 @@ export default async function TicketPage({
 
   return (
     <main className="flex flex-1 flex-col py-8 lg:py-16">
-      {justPaid && showQr ? <Celebration /> : null}
+      {justPaid && isConfirmed ? <Celebration /> : null}
 
       <Container className="flex flex-col gap-6">
-        {justPaid && showQr ? (
+        {justPaid && isConfirmed ? (
           <div className="flex flex-col items-center gap-3 text-center">
             <Mascot pose="success" height={150} />
             <h1 className="text-display font-bold text-text">You&apos;re in</h1>
@@ -117,21 +119,17 @@ export default async function TicketPage({
             <p className="text-label text-text-dim">{ticket.ticketType.name}</p>
           </div>
 
-          {showQr ? (
-            <div className="flex flex-col items-center gap-4 border-t border-border bg-white px-5 py-6 sm:py-8">
-              {/* On white, deliberately: a QR needs light quiet-zone contrast
-               * to scan reliably, and the scanner has under 2s to read it. */}
-              <TicketQr token={ticket.qrCode!} size={220} />
-              <p className="font-mono text-label font-bold tracking-wide text-accent-deep">
-                {ticket.reference}
-              </p>
-              {/* The mark on the white stub, the way a printed ticket carries
-               * the venue's. The mark is orange artwork rather than type, so
-               * it is fine on white — the *text* on this panel uses
-               * `accent-deep`, because the brand orange only clears ~3:1
-               * against white. */}
-              <Logo variant="mark" height={16} className="opacity-70" />
-            </div>
+          {isConfirmed ? (
+            <TicketCredential
+              reference={ticket.reference}
+              initialToken={ticket.qrCode}
+              eventName={event.name}
+              tierName={ticket.ticketType.name}
+              whenLabel={`${formatDate(event.startTime)} · ${formatTime(event.startTime)}`}
+              whereLabel={where}
+              holder={ticket.buyerName ?? ""}
+              shareUrl={shareUrl}
+            />
           ) : (
             <div className="border-t border-border p-5">
               <p className="text-body text-text-dim">{status.note}</p>
@@ -167,21 +165,6 @@ export default async function TicketPage({
             ) : null}
           </dl>
         </Card>
-
-        {showQr ? (
-          <TicketActions
-            shareUrl={shareUrl}
-            ticket={{
-              eventName: event.name,
-              tierName: ticket.ticketType.name,
-              whenLabel: `${formatDate(event.startTime)} · ${formatTime(event.startTime)}`,
-              whereLabel: where,
-              holder: ticket.buyerName ?? "",
-              reference: ticket.reference,
-              qrToken: ticket.qrCode!,
-            }}
-          />
-        ) : null}
 
         <ButtonLink
           href={`/events/${event.slug}`}
