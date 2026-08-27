@@ -5,6 +5,7 @@ import { fetchTicketByReference } from "@/lib/crowdpass";
 import { TicketQr } from "./TicketQr";
 import { TicketActions } from "./TicketActions";
 import { Button, Spinner } from "./ui";
+import { BrandSpinner } from "./BrandSpinner";
 import { Logo } from "./Logo";
 
 /**
@@ -135,9 +136,11 @@ export function TicketCredential(props: TicketCredentialProps) {
   // --- paid, but the mint has not landed yet -------------------------------
   return (
     <div className="flex flex-col items-center gap-4 border-t border-border px-5 py-8 text-center">
-      <div className="grid size-14 place-items-center rounded-full bg-warn/15 text-warn">
-        <Spinner className={stalled ? "size-6 animate-none opacity-60" : "size-6"} />
-      </div>
+      <BrandSpinner
+        width={84}
+        label="Finalising your ticket"
+        className={stalled ? "opacity-50" : undefined}
+      />
 
       <div className="flex flex-col gap-2">
         <p className="text-section font-bold text-text">

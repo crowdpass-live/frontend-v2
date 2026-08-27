@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import { fetchUpcomingEvents } from "@/lib/crowdpass";
 import { DiscoverFilters } from "@/components/DiscoverFilters";
 import { EventCard, FeaturedEventCard } from "@/components/EventCards";
-import { Card, SectionTitle, Container, Spinner } from "@/components/ui";
+import { Card, SectionTitle, Container } from "@/components/ui";
+import { EventCardSkeleton, Skeleton } from "@/components/Skeleton";
 import { Mascot } from "@/components/Mascot";
 import type { ApiEventListItem, EventCategory } from "@/types/api";
 
@@ -50,9 +51,7 @@ export default function DiscoverPage({
           {/* Suspense boundary: DiscoverFilters reads useSearchParams, and
            * without one that would opt the whole page out of static shell
            * rendering. */}
-          <Suspense
-            fallback={<div className="h-14 rounded-control bg-surface" />}
-          >
+          <Suspense fallback={<Skeleton className="h-14 w-full rounded-control" />}>
             <FiltersSlot />
           </Suspense>
         </header>
@@ -227,24 +226,14 @@ function Pagination({
   );
 }
 
+/** Mirrors the real results: one featured hero, then the card grid. */
 function LoadingResults() {
   return (
     <div className="flex flex-col gap-8" aria-busy>
-      <div className="flex aspect-[4/3] w-full items-center justify-center rounded-card bg-surface sm:aspect-[16/9] lg:aspect-[21/9]">
-        <Spinner className="size-6 text-text-faint" />
-      </div>
+      <Skeleton className="aspect-[4/3] w-full rounded-card sm:aspect-[16/9] lg:aspect-[21/9]" />
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="flex items-center gap-4 py-3 sm:flex-col sm:items-stretch sm:gap-0 sm:overflow-hidden sm:rounded-card sm:border sm:border-border sm:py-0"
-          >
-            <div className="size-14 shrink-0 rounded-xl bg-surface sm:aspect-[4/3] sm:size-auto sm:w-full sm:rounded-none" />
-            <div className="flex flex-1 flex-col gap-2 sm:p-4">
-              <div className="h-4 w-2/3 rounded bg-surface" />
-              <div className="h-3 w-1/3 rounded bg-surface" />
-            </div>
-          </div>
+          <EventCardSkeleton key={i} />
         ))}
       </div>
     </div>

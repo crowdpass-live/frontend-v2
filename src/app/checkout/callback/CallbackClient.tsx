@@ -11,6 +11,7 @@ import {
   subscribePendingPurchase,
 } from "@/lib/pending";
 import { Mascot } from "@/components/Mascot";
+import { BrandSpinner } from "@/components/BrandSpinner";
 import {
   Button,
   ButtonLink,
@@ -142,7 +143,7 @@ export function CallbackClient() {
   if (!hydrated) {
     return (
       <Container className="flex flex-col items-center gap-4 text-center">
-        <Spinner className="size-8 text-accent" />
+        <BrandSpinner width={88} label="Checking your payment" />
       </Container>
     );
   }
@@ -325,9 +326,13 @@ function StatusMark({
   if (tone === "neutral") {
     return <Mascot pose="no-tickets" height={130} className="mx-auto" />;
   }
+  // Waiting on a bank transfer is the longest a buyer looks at this page, so
+  // it gets the mark rather than a generic disc.
   return (
-    <div className="mx-auto grid size-20 place-items-center rounded-full bg-warn/15 text-warn">
-      <Spinner className={`size-8 ${pulse ? "" : "animate-none opacity-60"}`} />
-    </div>
+    <BrandSpinner
+      width={96}
+      label="Confirming your payment"
+      className={pulse ? "mx-auto" : "mx-auto opacity-50"}
+    />
   );
 }

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CallbackClient } from "./CallbackClient";
-import { Container, Spinner } from "@/components/ui";
+import { Container } from "@/components/ui";
+import { BrandSpinner } from "@/components/BrandSpinner";
 
 export const metadata: Metadata = {
   title: "Confirming payment",
@@ -21,7 +22,7 @@ export default function CheckoutCallbackPage() {
       <Suspense
         fallback={
           <Container className="flex flex-col items-center gap-4 text-center">
-            <Spinner className="size-8 text-accent" />
+            <BrandSpinner width={88} label="Confirming your payment" />
             <p className="text-body text-text-dim">Confirming your payment…</p>
           </Container>
         }
