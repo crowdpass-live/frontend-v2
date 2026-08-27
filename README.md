@@ -44,6 +44,14 @@ pnpm dev            # http://localhost:3000
 `NEXT_PUBLIC_API_URL` points at the backend, including the `/api` prefix the
 NestJS app sets globally. Defaults to the deployed backend; see `.env.example`.
 
+> **Local dev against the deployed API needs `http://localhost:3000` in the
+> backend's `CORS_ORIGINS`.** Now that production is locked to crowdpazz.com,
+> browser calls from localhost are blocked — checkout renders but shows no
+> payment methods, because `GET /payments/methods` never returns. The same
+> omission makes `returnUrl` fall back to the API callback page locally, since
+> `CORS_ORIGINS` is also the returnUrl allowlist. Either add localhost there or
+> run the backend locally.
+
 ## How the purchase actually works
 
 ```
@@ -174,6 +182,63 @@ a submit), and there each variant is explicitly hidden at the other breakpoint.
 narrow screens inside its own `overflow-x-auto`; nothing else is allowed past
 the viewport edge. `scratchpad/e2e-responsive.mjs` asserts this at seven widths
 from 320px to 1728px, ignoring elements inside a scroll container.
+
+## The ticket page
+
+**A confirmed ticket often has no QR yet.** `qrCode` is written by
+`MintFinalizerService.issueQrAndNotify`, which needs the `tokenId` from the
+on-chain mint receipt — and the mint queue retries 5× with exponential backoff
+from 10s. So between "payment settled" and "QR exists" there is a real window
+of seconds to minutes, and a real possibility it never closes.
+
+`TicketCredential` owns that window: it polls `GET /tickets/:reference` with
+backoff, shows what is actually happening, and swaps in the QR + Download +
+Share the moment the mint lands — no reload. Treating `CONFIRMED && qrCode` as
+the single "is this ticket real" test hides the QR *and* both buttons during
+the wait while still promising "Show this QR code at the door", which is what
+buyers were hitting.
+
+The copy leans on a fact worth knowing: **check-in does not need the QR.**
+`verifyTicket` and `checkIn` both look the ticket up by `reference`, and the
+scanner app has manual reference entry. A buyer whose mint is slow still gets
+in, so the reference is shown large while the QR is pending.
+
+**`ticket.qrCode` is not an image.** The backend stores the compact signed
+token (`htv1.<payload>.<sig>`, see `QrCodeService`) and every client encodes it
+itself — mobile via `react-native-qrcode-svg`, web via `TicketQr`. Passing that
+token to an `<img src>` renders a broken image. Encoding client-side also keeps
+the canvas untainted, which is what makes the download work at all.
+
+**Download** renders a 1080×1620 share card on a canvas (`lib/ticket-image.ts`)
+rather than screenshotting the DOM. html-to-image and html2canvas re-implement
+CSS layout and are reliably wrong about exactly what this card is made of —
+webfonts, gradients, `object-fit`. Drawing it means the output is identical on
+every browser and sized for sharing rather than for whatever viewport the buyer
+had. A test decodes the QR back out of the rendered PNG with `jsQR` to prove a
+door scanner can read the picture a buyer forwards.
+
+**Share** degrades in three steps, because no one API covers this:
+`navigator.share` with the file (iOS/Android — the image lands in the chat) →
+`navigator.share` with a link (browsers that expose sharing but refuse files) →
+a `wa.me` link (desktop). The last one cannot carry the image: WhatsApp's URL
+scheme is text-only. That is why Download sits beside Share rather than in a
+menu — attaching the saved picture is the desktop workaround.
+
+> **Do not move the image render into the click handler.** `navigator.share()`
+> needs transient user activation, and iOS Safari requires the call to happen
+> in the same task as the tap — an intervening `await` gets you
+> `NotAllowedError` and no share sheet. The PNG is therefore rendered on mount
+> during idle time and both buttons stay disabled until it exists, so the
+> handlers can call `share()` and `click()` synchronously.
+>
+> Chromium will not catch a regression here: it keeps activation live for 5s
+> across awaits, so the broken pattern passes locally and fails only on real
+> iPhones. Measured ready ~1.2–1.6s after navigation on a 4×-throttled phone.
+
+**Celebration** fires only on `?celebrate=1`, set by the payment-result page and
+the free-ticket path. A revisit or refresh gets a calm page. Confetti is CSS on
+`transform`/`opacity` only, unmounts after 3.4s, and is hidden under
+`prefers-reduced-motion`.
 
 ## Brand assets
 
