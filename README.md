@@ -280,6 +280,11 @@ zero — the UI iterates what is there rather than asserting a fixed set.
 - **No uptime or latency.** An API cannot report its own availability — a
   request that never arrived is one the server cannot count. Needs Render
   metrics or an external prober; nothing on the page claims it.
+- **No uptime bars, and no incident history.** A statuspage.io-style 90-day
+  strip comes from an *external prober* sampling from outside. Drawing one from
+  what a browser happened to observe would produce a figure that looks
+  authoritative and means "whenever someone had the tab open". The page says so
+  in place of the strip rather than omitting it silently.
 - **`/api/health` goes blind when it fails.** Healthy, it is rich: per-chain
   block heights, per-queue depths. Unhealthy, it returns a bare 503 —
   `HttpExceptionFilter` is registered globally in `main.ts` and rewrites every
@@ -292,6 +297,24 @@ zero — the UI iterates what is there rather than asserting a fixed set.
   endpoint anywhere in the backend — `/admin/users` 404s on live, and
   `AdminController` is read-only by design. Any user-admin UI needs backend
   work first.
+
+### The status page
+
+Modelled on statuspage.io: an overall banner, then components grouped as
+**Buying a ticket** (checkout → payment confirmation → ticket issuing → ticket
+delivery, in the order a buyer meets them) and **Platform services**. Labels are
+statuspage's own vocabulary, because it is the one people already read
+correctly.
+
+One label is added that statuspage does not have: **Status Unknown**. When
+`/api/health` 503s, the filter has already discarded which indicator failed, so
+claiming a dependency is up or down would be an invention. Nothing is green by
+default — a component with no signal reads Unknown.
+
+Every row states *why* it is at its level, including when it is Operational —
+"why do you believe this is fine" is as useful during an incident as "what
+broke". Derivation lives in `lib/status-model.ts`, one rule per component,
+each tied to a signal the API really reports.
 
 ### The chart
 
