@@ -240,6 +240,68 @@ the free-ticket path. A revisit or refresh gets a calm page. Confetti is CSS on
 `transform`/`opacity` only, unmounts after 3.4s, and is hidden under
 `prefers-reduced-motion`.
 
+## Admin (`/admin`)
+
+Two pages against the admin API (Backend-v2 PR #21): **metrics** and
+**status**. Sign in at `/admin/login` with an ADMIN account.
+
+Buyer pages live under the `(site)` route group so `/admin` can opt out of the
+storefront chrome entirely.
+
+**The client-side role check is a courtesy, not a gate.** Every `/admin/*`
+route on the API is `@Roles(UserRole.ADMIN)` — a different gate from the
+organizer pages, which use `@Roles(ORGANIZER, ADMIN)` — and answers 403 to
+anything else. A forged localStorage session buys an empty dashboard, not data.
+The check exists so an ORGANIZER who signs in gets one clear sentence instead
+of a wall of failed requests. If an admin action ever *mutates*, move it behind
+a route handler with an httpOnly cookie rather than hardening this in place.
+
+### Rules the UI has to keep
+
+**A rate is `null`, never `0`, when there was nothing to divide.** `0%` says
+the business earns nothing; `null` says nothing sold. Nulls render as an em
+dash **with a reason beside them** (`takeRate`, `averageOrderValue`,
+`attendanceRate`, `failureRate`) — never as a number.
+
+**`paidAwaitingMint` is the alarm; `abandonedCheckouts` is not.** The first is
+a buyer out of pocket with no ticket and is always Critical in the incident
+list. The second is a normal property of any funnel and appears only on the
+metrics page beside conversion. They are never summed and never styled alike —
+listing abandonment as an incident would train everyone to ignore the panel.
+
+**`kyc.verified` / `kyc.pending` ignore the date range** and are labelled
+"not this date range", because they are current standings rather than flow.
+
+**`events.byStatus` is a partial record.** A status with no rows is absent, not
+zero — the UI iterates what is there rather than asserting a fixed set.
+
+### What the API cannot tell you
+
+- **No uptime or latency.** An API cannot report its own availability — a
+  request that never arrived is one the server cannot count. Needs Render
+  metrics or an external prober; nothing on the page claims it.
+- **`/api/health` goes blind when it fails.** Healthy, it is rich: per-chain
+  block heights, per-queue depths. Unhealthy, it returns a bare 503 —
+  `HttpExceptionFilter` is registered globally in `main.ts` and rewrites every
+  error to `{ statusCode, message, timestamp, path }`, discarding Terminus's
+  `info`/`error`/`details`. So the status page is **ops-first**: `/admin/ops`
+  carries the diagnosis and health is a coarse banner that says plainly it does
+  not know which check failed. A one-line backend fix (exclude `/health` from
+  the filter) would make it specific.
+- **No user management.** There is no `/admin/users` and no role-change
+  endpoint anywhere in the backend — `/admin/users` 404s on live, and
+  `AdminController` is read-only by design. Any user-admin UI needs backend
+  work first.
+
+### The chart
+
+One series, one axis. The daily endpoint returns `gmv` **and**
+`transactions`, and plotting both would be a dual-axis chart — two scales whose
+alignment is arbitrary, inventing a correlation the data does not contain.
+Transactions ride in the tooltip instead. Provider amounts use **one hue for
+every bar**: nominal categories carrying one measure, so a per-provider hue
+would burn the only free channel restating bar length.
+
 ## Loading states
 
 Three tiers, chosen by how long the wait is and how much is known about what

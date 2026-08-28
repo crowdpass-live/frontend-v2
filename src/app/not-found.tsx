@@ -1,9 +1,13 @@
 import { ButtonLink, Container } from "@/components/ui";
+import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 import { Mascot } from "@/components/Mascot";
 
 export default function NotFound() {
   return (
-    <main className="flex flex-1 items-center justify-center py-24">
+    <>
+      <SiteHeader />
+      <main className="flex flex-1 items-center justify-center py-24">
       <Container className="flex flex-col items-center gap-6 text-center">
         <Mascot pose="error" height={160} />
         <p className="text-display font-bold text-text">Not found</p>
@@ -15,6 +19,8 @@ export default function NotFound() {
           Back to CrowdPass
         </ButtonLink>
       </Container>
-    </main>
+      </main>
+      <SiteFooter />
+    </>
   );
 }
