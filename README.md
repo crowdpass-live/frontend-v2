@@ -300,21 +300,29 @@ zero — the UI iterates what is there rather than asserting a fixed set.
 
 ### The status page
 
-Modelled on statuspage.io: an overall banner, then components grouped as
-**Buying a ticket** (checkout → payment confirmation → ticket issuing → ticket
-delivery, in the order a buyer meets them) and **Platform services**. Labels are
-statuspage's own vocabulary, because it is the one people already read
-correctly.
+An incident list first (`Needs attention`), then dependency cards, then the
+90-day uptime strips, then the raw panels. During an incident the counts are
+what you work from, so they stay.
 
-One label is added that statuspage does not have: **Status Unknown**. When
-`/api/health` 503s, the filter has already discarded which indicator failed, so
-claiming a dependency is up or down would be an invention. Nothing is green by
-default — a component with no signal reads Unknown.
+**The uptime strips are honest about what they are.** A statuspage.io bar is
+drawn by an *external prober* sampling every minute whether or not anyone is
+looking. CrowdPass has none, so `lib/uptime-history.ts` records what this
+browser observes while the page is open, and:
 
-Every row states *why* it is at its level, including when it is Operational —
-"why do you believe this is fine" is as useful during an incident as "what
-broke". Derivation lives in `lib/status-model.ts`, one rule per component,
-each tied to a signal the API really reports.
+- a day nobody watched is **grey**, never green — silence is not evidence of
+  health, and colouring it green would be the whole lie;
+- the percentage is over **observed days only** and is labelled as such, so it
+  cannot be misread as "100% uptime over 90 days";
+- each day keeps the **worst** level seen, matching how statuspage treats a
+  partial-day incident.
+
+Component levels come from `lib/status-model.ts` — one rule per component,
+each tied to a signal the API really reports, with a **Status Unknown** level
+for when `/api/health` 503s and the filter has already discarded which
+indicator failed. Nothing is green by default.
+
+Swapping the local store for a `status_samples` table read through one endpoint
+turns these into real uptime bars; `UptimeStrip` itself would not change.
 
 ### The chart
 
