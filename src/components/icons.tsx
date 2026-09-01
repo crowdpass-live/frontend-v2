@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 
 /**
- * Inline SVG rather than an icon package: there are six icons in the whole
+ * Inline SVG rather than an icon package: there are a handful of icons in the
  * buyer flow, and they all inherit `currentColor` so a token change repaints
  * them with everything else.
  */
@@ -67,6 +67,23 @@ export function CheckIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>
       <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+export function MailIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="2.5" y="5" width="19" height="14" rx="3" />
+      <path d="m3.5 7.5 7.4 5.3a2 2 0 0 0 2.2 0l7.4-5.3" />
+    </svg>
+  );
+}
+
+export function PhoneIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M7 3.5h2.2l1.6 4-1.9 1.4a12 12 0 0 0 5.2 5.2l1.4-1.9 4 1.6V16a3.5 3.5 0 0 1-3.9 3.5A15.5 15.5 0 0 1 3.5 7.4 3.5 3.5 0 0 1 7 3.5Z" />
     </svg>
   );
 }
