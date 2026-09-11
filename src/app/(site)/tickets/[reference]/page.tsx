@@ -6,6 +6,7 @@ import { formatDate, formatDateTimeLong, formatTime, money } from "@/lib/format"
 import { CalendarIcon, PinIcon } from "@/components/icons";
 import { Badge, ButtonLink, Card, Container } from "@/components/ui";
 import { TicketCredential } from "@/components/TicketCredential";
+import { PendingTicket } from "@/components/PendingTicket";
 import { Celebration } from "@/components/Celebration";
 import { Mascot } from "@/components/Mascot";
 import type { ApiTicket, TicketStatus } from "@/types/api";
@@ -33,9 +34,12 @@ const STATUS: Record<
     note: "Show this at the door.",
   },
   PENDING: {
-    label: "Pending payment",
+    // Not "Pending payment": a paid ticket stays PENDING until its mint lands,
+    // so most buyers see this badge after their payment has already cleared.
+    // PendingTicket owns the body copy for this case.
+    label: "Processing",
     tone: "warn",
-    note: "We're still waiting on your payment. This ticket becomes valid the moment it clears.",
+    note: "This ticket is still being issued.",
   },
   USED: {
     label: "Checked in",
@@ -130,6 +134,9 @@ export default async function TicketPage({
               holder={ticket.buyerName ?? ""}
               shareUrl={shareUrl}
             />
+          ) : ticket.status === "PENDING" ? (
+            // Polls, and refreshes this page the moment the ticket lands.
+            <PendingTicket reference={ticket.reference} paid={justPaid} />
           ) : (
             <div className="border-t border-border p-5">
               <p className="text-body text-text-dim">{status.note}</p>
