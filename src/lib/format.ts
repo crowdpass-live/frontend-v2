@@ -126,6 +126,10 @@ export function normalizePhone(raw: string | null | undefined): string | null {
  * disagree — a "Get tickets" button that leads to "sales have closed" is
  * worse than no button. Kept as a plain function taking `now` rather than
  * reading the clock inside a component, so it is pure and testable.
+ *
+ * Mirrors the backend gates in `tickets.service.ts` and
+ * `draft-order.service.ts`; both close on `endTime`. Change one, change all
+ * three, or the buyer gets a form that only fails once they try to pay.
  */
 export interface SaleWindow {
   canBuy: boolean;
@@ -133,9 +137,27 @@ export interface SaleWindow {
   reason: string | null;
 }
 
+/**
+ * When the till shuts: the end of the event, not its start.
+ *
+ * Gating on `startTime` closed sales the moment the doors opened, which
+ * killed walk-ups and every multi-day event's second day. `endTime` is
+ * non-null in the backend schema, so the fallback below should never fire;
+ * it falls back to `startTime` rather than staying open forever because an
+ * event with no knowable end should refuse money, not take it indefinitely.
+ */
+function saleCloseTime(event: {
+  startTime: string;
+  endTime?: string | null;
+}): number {
+  const end = event.endTime ? new Date(event.endTime).getTime() : NaN;
+  return Number.isNaN(end) ? new Date(event.startTime).getTime() : end;
+}
+
 export function saleWindow(
   event: {
     startTime: string;
+    endTime?: string | null;
     purchaseStartTime: string | null;
     ticketTypes: { available: number; isOnSale: boolean }[];
   },
@@ -143,7 +165,7 @@ export function saleWindow(
 ): SaleWindow {
   const tiers = event.ticketTypes ?? [];
 
-  if (now >= new Date(event.startTime).getTime()) {
+  if (now >= saleCloseTime(event)) {
     return { canBuy: false, reason: "Sales have closed" };
   }
   if (

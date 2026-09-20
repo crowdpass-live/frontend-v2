@@ -56,9 +56,12 @@ export function fetchEvents(query: EventQuery = {}): Promise<ApiEventList> {
 /**
  * Events that haven't started yet, soonest first.
  *
- * `startDate` is the current time rather than midnight: an event that began an
- * hour ago cannot be bought (the backend closes sales at `startTime`), so
- * listing it would be an invitation to a dead end.
+ * `startDate` is the current time rather than midnight, and the backend
+ * filters on `startTime >= startDate`, so this hides an event that began an
+ * hour ago. That used to match the purchase rule; it no longer does — sales
+ * now run until `endTime`, so an in-progress event is buyable but absent from
+ * this list. Widening it needs a backend filter on `endTime`, since
+ * `startDate` cannot express "still running".
  */
 export function fetchUpcomingEvents(
   query: Omit<EventQuery, "startDate"> = {},
