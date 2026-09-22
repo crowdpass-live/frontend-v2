@@ -6,6 +6,16 @@ import type { ApiEnvelope } from "@/types/api";
  *
  * Public because the checkout form calls the API straight from the browser —
  * there is no BFF layer, and adding one would just proxy a public endpoint.
+ *
+ * Staging lives at https://crowdpass-api-staging.onrender.com/api and is what
+ * `develop` is tested against; see `.env.example`.
+ *
+ * The fallback below is the PRODUCTION API, and it is deliberately not the
+ * staging one: production must keep working even if its Vercel project ever
+ * loses the variable. The cost is that a staging or preview deploy which
+ * forgets to set `NEXT_PUBLIC_API_URL` sells real tickets against production
+ * instead of failing. Set the variable explicitly on every non-production
+ * deploy rather than relying on this default.
  */
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "https://backend-v2-gwuz.onrender.com/api";
