@@ -42,7 +42,17 @@ pnpm dev            # http://localhost:3000
 ```
 
 `NEXT_PUBLIC_API_URL` points at the backend, including the `/api` prefix the
-NestJS app sets globally. Defaults to the deployed backend; see `.env.example`.
+NestJS app sets globally. Copy `.env.example` to `.env.local`; it points at
+**staging**, which is what day-to-day development runs against.
+
+| Environment | API |
+| --- | --- |
+| Staging (`develop`) | `https://crowdpass-api-staging.onrender.com/api` |
+| Production (`main`) | `https://backend-v2-gwuz.onrender.com/api` |
+| Local backend | `http://localhost:3000/api` |
+
+Production sells real tickets and takes real money. Point a local build at it
+only when you specifically mean to, and never to "just check something".
 
 > **Local dev against the deployed API needs `http://localhost:3000` in the
 > backend's `CORS_ORIGINS`.** Now that production is locked to crowdpazz.com,
@@ -103,9 +113,25 @@ because validation runs before the controller — the rejected attempt creates
 no transaction and reserves no seat. **Never retry a purchase on any other
 error.**
 
+## Branching
+
+`main` is production. **Nothing merges straight into it.**
+
+```
+feature branch → develop → (when we choose to ship) → main
+```
+
+`develop` is the integration branch and is tested against the staging API.
+Open every pull request against `develop`; promoting `develop` to `main` is a
+separate, deliberate decision, not the tail end of a feature.
+
 ## Deploying
 
 Production is **https://www.crowdpazz.com** (Vercel).
+
+Every non-production deploy must set `NEXT_PUBLIC_API_URL` explicitly. The
+code falls back to the *production* API when it is unset (see `src/lib/api.ts`
+for why), so a staging deploy that omits it will quietly sell real tickets.
 
 > **The `www` is load-bearing.** `https://crowdpazz.com` 308-redirects to
 > `https://www.crowdpazz.com`, so `www` is the origin a browser actually
