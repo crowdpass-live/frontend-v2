@@ -1,5 +1,7 @@
 import { ApiError, apiFetch } from "./api";
 import type {
+  ApiClaimResult,
+  ApiClaimVerifyResult,
   ApiEvent,
   ApiEventList,
   EventCategory,
@@ -201,6 +203,61 @@ export async function purchaseTicket(
     }
     throw err;
   }
+}
+
+export interface ClaimPayload {
+  eventId: string;
+  ticketTypeId: string;
+  fullName: string;
+  matNo: string;
+  buyerEmail: string;
+  buyerPhone?: string;
+  deliveryChannel: DeliveryChannel;
+}
+
+/**
+ * `POST /tickets/claim` — public, no auth, tighter-throttled than every
+ * other endpoint (8 requests/minute per IP). Redeems a matNo + full name the
+ * organizer has pre-imported for a `claimOnly` tier into a `CONFIRMED`
+ * ticket in one write — no gateway, no polling.
+ *
+ * Never auto-retry this on failure: a wrong name increments a per-entry
+ * failed-attempt counter and locks the matric number after 3, and the IP
+ * throttle is tight enough that a naive retry loop burns the buyer's whole
+ * budget for the minute.
+ */
+export function claimTicket(payload: ClaimPayload): Promise<ApiClaimResult> {
+  return apiFetch<ApiClaimResult>("/tickets/claim", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export interface VerifyClaimPayload {
+  eventId: string;
+  ticketTypeId: string;
+  fullName: string;
+  matNo: string;
+}
+
+/**
+ * `POST /tickets/claim/verify` — step one of the two-step claim form.
+ * Checks a matNo + full name against the imported claim list without
+ * creating anything, so the buyer can see a green check before being
+ * asked for contact details.
+ *
+ * Same throttle tier as `claimTicket` (8/min) and the same per-entry
+ * lockout underneath — a wrong name here counts toward the entry's
+ * 3-strike lockout exactly like a wrong name in the real claim would.
+ * Never auto-retry, for the same reason `claimTicket` never does.
+ */
+export function verifyClaim(
+  payload: VerifyClaimPayload,
+): Promise<ApiClaimVerifyResult> {
+  return apiFetch<ApiClaimVerifyResult>("/tickets/claim/verify", {
+    method: "POST",
+    body: payload,
+  });
 }
 
 /**

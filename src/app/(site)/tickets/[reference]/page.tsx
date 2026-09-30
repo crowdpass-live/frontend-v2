@@ -127,6 +127,11 @@ export default async function TicketPage({
             <TicketCredential
               reference={ticket.reference}
               initialToken={ticket.qrCode}
+              // Free and claimed tickets are never minted, so they never get
+              // a qrCode — see TicketCredential's own doc comment. Price is
+              // the tier's own price, the same number the backend used to
+              // decide `isFree` at purchase/claim time.
+              isFree={Number(ticket.ticketType.price) === 0}
               eventName={event.name}
               tierName={ticket.ticketType.name}
               whenLabel={`${formatDate(event.startTime)} · ${formatTime(event.startTime)}`}

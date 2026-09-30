@@ -48,6 +48,12 @@ export interface ApiEnvelope<T> {
  * `reservedCount` — seats held part-way through a WhatsApp purchase Flow are
  * not for sale on the web. Never recompute availability from
  * `quantity - soldCount` on the client; that number oversells.
+ *
+ * `claimOnly`: this tier is never buyable through `POST /tickets/purchase` —
+ * the backend rejects it outright regardless of price or provider. The only
+ * way to obtain one is `POST /tickets/claim` with a matNo + full name the
+ * organizer has pre-imported. `available`/`isOnSale` still mean what they
+ * always mean for a claim-only tier (seats left / within the sale window).
  */
 export interface ApiTicketType {
   id: string;
@@ -62,6 +68,7 @@ export interface ApiTicketType {
   salesEndDate: string | null;
   available: number;
   isOnSale: boolean;
+  claimOnly: boolean;
 }
 
 export interface ApiEvent {
@@ -192,6 +199,27 @@ export interface ApiPurchaseResult {
     amount: string;
     chain: string;
   } | null;
+}
+
+/**
+ * `POST /tickets/claim` — redeems a `claimOnly` tier's pre-imported matNo
+ * entry into a real ticket. Always `CONFIRMED` at creation — no gateway, no
+ * mint wait, so there is nothing to poll.
+ */
+export interface ApiClaimResult {
+  reference: string;
+  ticket: { id: string; reference: string; status: TicketStatus };
+}
+
+/**
+ * `POST /tickets/claim/verify` — step one of the two-step claim form.
+ * Checks a matNo + full name against the imported claim list without
+ * creating anything; the only success shape is `{ valid: true }`, every
+ * failure is a thrown `ApiError` (wrong name, already claimed, sold out,
+ * etc. — same messages `POST /tickets/claim` would give).
+ */
+export interface ApiClaimVerifyResult {
+  valid: true;
 }
 
 export interface ApiTicket {
