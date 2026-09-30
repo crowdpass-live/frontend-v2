@@ -11,6 +11,7 @@ import {
   titleCase,
 } from "@/lib/format";
 import { EventCover } from "@/components/EventCover";
+import { ClaimTicketButton } from "@/components/ClaimTicketButton";
 import { CalendarIcon, PinIcon } from "@/components/icons";
 import { Badge, ButtonLink, Card, SectionTitle, Container } from "@/components/ui";
 import type { ApiEvent, ApiTicketType } from "@/types/api";
@@ -69,10 +70,16 @@ export async function generateMetadata({
   };
 }
 
-/** The cheapest tier a buyer could actually buy, for the "from ₦X" footer. */
+/**
+ * The cheapest tier a buyer could actually buy through checkout, for the
+ * "from ₦X" footer. Claim-only tiers are excluded even as a fallback — they
+ * have a price field but are never sold through checkout at any price, so
+ * quoting one here would advertise a number the buyer can't act on.
+ */
 function priceFrom(tiers: ApiTicketType[]): number | null {
-  const buyable = tiers.filter((t) => t.isOnSale);
-  const pool = buyable.length ? buyable : tiers;
+  const purchasable = tiers.filter((t) => !t.claimOnly);
+  const buyable = purchasable.filter((t) => t.isOnSale);
+  const pool = buyable.length ? buyable : purchasable;
   if (!pool.length) return null;
   return Math.min(...pool.map((t) => Number(t.price) || 0));
 }
@@ -93,9 +100,11 @@ function tierNote(tier: ApiTicketType): string {
 function TicketTierRow({
   tier,
   currency,
+  eventId,
 }: {
   tier: ApiTicketType;
   currency: string;
+  eventId: string;
 }) {
   const unavailable = !tier.isOnSale;
   return (
@@ -110,13 +119,20 @@ function TicketTierRow({
         </p>
         <p className="mt-0.5 text-helper text-text-faint">{tierNote(tier)}</p>
       </div>
-      <p
-        className={`shrink-0 text-body font-bold ${
-          unavailable ? "text-text-faint line-through" : "text-text"
-        }`}
-      >
-        {money(tier.price, currency)}
-      </p>
+      {tier.claimOnly ? (
+        // Never a price or a "Buy" button — the backend rejects a claimOnly
+        // type through checkout even if this linked there. The only door in
+        // is the claim form, gated on a matNo the organizer pre-imported.
+        <ClaimTicketButton eventId={eventId} tier={tier} />
+      ) : (
+        <p
+          className={`shrink-0 text-body font-bold ${
+            unavailable ? "text-text-faint line-through" : "text-text"
+          }`}
+        >
+          {money(tier.price, currency)}
+        </p>
+      )}
     </Card>
   );
 }
@@ -159,7 +175,13 @@ export default async function EventDetailPage({
 
   // Shared with the checkout page so the CTA here can never promise something
   // the next page refuses.
-  const { canBuy, reason: blockedReason } = saleWindow(event);
+  const { canBuy: saleOpen, reason: saleBlockedReason } = saleWindow(event);
+  const hasPurchasableTier = tiers.some((t) => !t.claimOnly);
+  // An event made up entirely of claim-only tiers has nothing for checkout to
+  // sell — every tier row already carries its own "Claim your ticket" button,
+  // so the CTA would otherwise open an empty checkout page.
+  const canBuy = saleOpen && hasPurchasableTier;
+  const blockedReason = saleBlockedReason ?? "Claim your ticket above";
 
   const where = [event.venue, event.location].filter(Boolean);
   const organizer = [event.organizer?.firstName, event.organizer?.lastName]
@@ -285,7 +307,12 @@ export default async function EventDetailPage({
               </Card>
             ) : (
               tiers.map((tier) => (
-                <TicketTierRow key={tier.id} tier={tier} currency={currency} />
+                <TicketTierRow
+                  key={tier.id}
+                  tier={tier}
+                  currency={currency}
+                  eventId={event.id}
+                />
               ))
             )}
           </section>
@@ -307,6 +334,11 @@ export default async function EventDetailPage({
                   No account needed
                 </p>
               </>
+            ) : saleOpen ? (
+              // Sale window is open but every tier is claim-only — each tier
+              // row above already carries its own claim button, so there is
+              // nothing left for this CTA to do.
+              null
             ) : (
               <span className="inline-flex h-14 w-full items-center justify-center rounded-control bg-surface px-6 text-body font-bold text-text-faint">
                 {blockedReason}
@@ -334,7 +366,7 @@ export default async function EventDetailPage({
             >
               Get tickets
             </ButtonLink>
-          ) : (
+          ) : saleOpen ? null : (
             <span className="inline-flex h-14 min-w-[168px] items-center justify-center rounded-control bg-surface px-6 text-body font-bold text-text-faint">
               Unavailable
             </span>
