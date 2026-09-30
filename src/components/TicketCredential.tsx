@@ -6,6 +6,7 @@ import { TicketQr } from "./TicketQr";
 import { TicketActions } from "./TicketActions";
 import { Button, Spinner } from "./ui";
 import { BrandSpinner } from "./BrandSpinner";
+import { CheckIcon } from "./icons";
 import { Logo } from "./Logo";
 
 /**
@@ -26,6 +27,14 @@ import { Logo } from "./Logo";
  * does not need the QR.** `verifyTicket` and `checkIn` both look the ticket up
  * by `reference`, and the scanner app has a manual reference entry. A buyer
  * whose mint is slow still gets in.
+ *
+ * `isFree` is a different case entirely, not a slower version of the above:
+ * `purchase()`'s free-ticket path and `claim()` both create the ticket
+ * `CONFIRMED` without ever calling `mintQueue.enqueueMint` (see
+ * `tickets.service.ts`), so there is no window to wait out — `qrCode` will
+ * never be written. Polling for it would spin for the full 3 minutes on
+ * every single free or claimed ticket, and "we're minting on-chain" would be
+ * false. That branch renders once, immediately, with no timer.
  */
 
 /** Tight at first — the mint usually lands in seconds — then backing off. */
@@ -42,6 +51,16 @@ export interface TicketCredentialProps {
   reference: string;
   /** `ticket.qrCode` at render time — null while the mint is still running. */
   initialToken: string | null;
+  /**
+   * `ticket.ticketType.price === 0` — a free (or claimed) ticket. These are
+   * `CONFIRMED` at creation but `purchase()`/`claim()` never call
+   * `mintQueue.enqueueMint` for them (see `tickets.service.ts`), so
+   * `qrCode`/`tokenId` are not "not minted yet" here, they are "never
+   * minted" — polling for one would spin forever and the "we're minting
+   * on-chain" copy would be a lie. Paid tickets are unaffected: those do
+   * get enqueued and this prop is false for them.
+   */
+  isFree: boolean;
   eventName: string;
   tierName: string;
   whenLabel: string;
@@ -51,7 +70,7 @@ export interface TicketCredentialProps {
 }
 
 export function TicketCredential(props: TicketCredentialProps) {
-  const { reference, initialToken } = props;
+  const { reference, initialToken, isFree } = props;
 
   const [token, setToken] = useState<string | null>(initialToken);
   const [stalled, setStalled] = useState(false);
@@ -78,7 +97,7 @@ export function TicketCredential(props: TicketCredentialProps) {
   }, [reference]);
 
   useEffect(() => {
-    if (token || stalled) return;
+    if (token || stalled || isFree) return;
     let cancelled = false;
     if (startedAt.current === 0) startedAt.current = Date.now();
 
@@ -100,7 +119,7 @@ export function TicketCredential(props: TicketCredentialProps) {
       cancelled = true;
       window.clearTimeout(timer.current);
     };
-  }, [token, stalled, check]);
+  }, [token, stalled, isFree, check]);
 
   // --- the ticket is ready -------------------------------------------------
   if (token) {
@@ -130,6 +149,32 @@ export function TicketCredential(props: TicketCredentialProps) {
           />
         </div>
       </>
+    );
+  }
+
+  // --- free/claimed: CONFIRMED, but there is no QR coming, ever ------------
+  if (isFree) {
+    return (
+      <div className="flex flex-col items-center gap-4 border-t border-border px-5 py-8 text-center">
+        <span className="grid size-16 shrink-0 place-items-center rounded-full bg-ok/15 text-ok">
+          <CheckIcon width={28} height={28} />
+        </span>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-section font-bold text-text">You&apos;re confirmed</p>
+          <p className="max-w-sm text-body text-text-dim">
+            Free tickets don&apos;t get a QR code — the team checks you in with
+            the reference below.
+          </p>
+        </div>
+
+        <div className="w-full rounded-control border border-border bg-surface-strong px-4 py-3">
+          <p className="text-helper text-text-faint">Your reference</p>
+          <p className="font-mono text-body font-bold tracking-wide text-text">
+            {reference}
+          </p>
+        </div>
+      </div>
     );
   }
 

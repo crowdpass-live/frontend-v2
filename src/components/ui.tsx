@@ -139,6 +139,42 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
+/** A labelled text input with an inline validation error. Shared by every
+ * guest form (checkout, ticket claim) so they read as one design. */
+export function Field({
+  label,
+  hint,
+  error,
+  className,
+  ...props
+}: ComponentProps<"input"> & {
+  label: string;
+  hint?: string;
+  error?: string;
+}) {
+  return (
+    <label className={cx("flex flex-col gap-2", className)}>
+      <span className="text-label text-text-dim">
+        {label}
+        {hint ? <span className="text-text-faint"> · {hint}</span> : null}
+      </span>
+      <input
+        {...props}
+        aria-invalid={!!error}
+        className={cx(
+          "h-14 rounded-control border bg-surface px-4 text-body text-text placeholder:text-text-faint",
+          error ? "border-danger" : "border-border",
+        )}
+      />
+      {error ? (
+        <span role="alert" className="text-helper text-danger">
+          {error}
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
 /**
  * Screen-side padding + max width. One place so pages can't drift apart.
  *

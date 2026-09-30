@@ -11,7 +11,7 @@ import { fetchPaymentMethods, purchaseTicket } from "@/lib/crowdpass";
 import { money, normalizePhone } from "@/lib/format";
 import { rememberPendingPurchase } from "@/lib/pending";
 import { CardIcon, CoinIcon } from "@/components/icons";
-import { Button, Card, ErrorNote, SectionTitle, Container, Spinner, cx } from "@/components/ui";
+import { Button, Card, ErrorNote, Field, SectionTitle, Container, Spinner, cx } from "@/components/ui";
 import type { ApiEvent, ApiTicketType, PaymentProvider } from "@/types/api";
 
 /**
@@ -153,43 +153,17 @@ function MethodOption({
   );
 }
 
-function Field({
-  label,
-  hint,
-  error,
-  ...props
-}: React.ComponentProps<"input"> & {
-  label: string;
-  hint?: string;
-  error?: string;
-}) {
-  return (
-    <label className="flex flex-col gap-2">
-      <span className="text-label text-text-dim">
-        {label}
-        {hint ? <span className="text-text-faint"> · {hint}</span> : null}
-      </span>
-      <input
-        {...props}
-        aria-invalid={!!error}
-        className={cx(
-          "h-14 rounded-control border bg-surface px-4 text-body text-text placeholder:text-text-faint",
-          error ? "border-danger" : "border-border",
-        )}
-      />
-      {error ? (
-        <span role="alert" className="text-helper text-danger">
-          {error}
-        </span>
-      ) : null}
-    </label>
-  );
-}
-
 export function CheckoutForm({ event }: { event: ApiEvent }) {
   const router = useRouter();
   const currency = event.currency || "NGN";
-  const tiers = useMemo(() => event.ticketTypes ?? [], [event.ticketTypes]);
+  // Claim-only tiers are never buyable through this form — the backend
+  // rejects them outright regardless of price or provider. The event page
+  // routes those to the claim dialog instead; excluding them here means a
+  // buyer can never select one and get a checkout-time rejection.
+  const tiers = useMemo(
+    () => (event.ticketTypes ?? []).filter((t) => !t.claimOnly),
+    [event.ticketTypes],
+  );
 
   const [tierId, setTierId] = useState<string | null>(
     () => tiers.find((t) => t.isOnSale)?.id ?? null,
@@ -340,6 +314,11 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
       {/* Ticket */}
       <section className="flex flex-col gap-1">
         <SectionTitle>Select ticket</SectionTitle>
+        {tiers.length === 0 ? (
+          <p className="py-4 text-body text-text-dim">
+            No tickets are available for purchase on this event.
+          </p>
+        ) : null}
         <div className="divide-y divide-border">
           {tiers.map((t) => (
             <TierOption
