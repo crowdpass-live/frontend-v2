@@ -118,3 +118,20 @@ export function lastDays(days: number): { from: Date; to: Date } {
   const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
   return { from, to };
 }
+
+/**
+ * A token amount from a Decimal string: `"12.5", "USDC"` -> `"12.50 USDC"`.
+ *
+ * Payouts are USDC, not naira — never run them through `ngn`. Two decimals
+ * for anything a person would recognise as money; below a cent, up to the
+ * token's six, so a dust payout does not display as "0.00".
+ */
+export function tokenAmount(value: string | number | null | undefined, currency: string): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  if (n === null || n === undefined || !Number.isFinite(n)) return NO_VALUE;
+  const digits = n !== 0 && Math.abs(n) < 0.01 ? 6 : 2;
+  return `${n.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: digits,
+  })} ${currency}`;
+}

@@ -1,17 +1,25 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { ngn, ngnCompact, count, shortDay } from "@/lib/metric-format";
-import type { AdminDailyPoint } from "@/types/admin";
+
+/** One day: naira on the axis, a count (transactions, tickets) in the tooltip. */
+export interface DailyPoint {
+  /** `YYYY-MM-DD` */
+  day: string;
+  value: number;
+  count: number;
+}
 
 /**
- * Daily GMV over the selected range.
+ * Daily naira over a range — platform GMV on the admin console, one event's
+ * ticket revenue in the organizer's control room.
  *
- * **One axis, deliberately.** The endpoint returns `gmv` and `transactions`
- * per day, and the obvious move — plotting both — would be a dual-axis chart:
+ * **One axis, deliberately.** Both callers have a second measure per day (a
+ * count), and the obvious move — plotting both — would be a dual-axis chart:
  * two scales whose alignment is arbitrary, inventing a correlation the data
- * does not contain. Transactions ride in the tooltip instead, where they can
- * be read against the same day without implying a shape.
+ * does not contain. The count rides in the tooltip instead, where it can be
+ * read against the same day without implying a shape.
  *
  * One series, so there is no legend (the heading names it) and no categorical
  * palette to get wrong — a single brand hue carries the whole plot. Values are
@@ -35,18 +43,32 @@ function niceMax(value: number): number {
   return 10 * mag;
 }
 
-export function RevenueChart({ data }: { data: AdminDailyPoint[] }) {
+export function DailyRevenueChart({
+  data,
+  label,
+  countNoun,
+  emptyText,
+}: {
+  data: DailyPoint[];
+  /** What the series is, for the accessible name and table caption. */
+  label: string;
+  /** Singular and plural for the tooltip count: ["ticket", "tickets"]. */
+  countNoun: [string, string];
+  emptyText: string;
+}) {
   const svgRef = useRef<SVGSVGElement>(null);
+  // Two charts on one page must not share a gradient id.
+  const fillId = `daily-fill-${useId().replace(/:/g, "")}`;
   const [hover, setHover] = useState<number | null>(null);
 
   const { points, max, path, area } = useMemo(() => {
-    const max = niceMax(Math.max(0, ...data.map((d) => d.gmv)));
+    const max = niceMax(Math.max(0, ...data.map((d) => d.value)));
     // A single day would divide by zero; pin it to the middle of the plot.
     const stepX = data.length > 1 ? PLOT.w / (data.length - 1) : 0;
     const points = data.map((d, i) => ({
       ...d,
       x: PAD.left + (data.length > 1 ? i * stepX : PLOT.w / 2),
-      y: PAD.top + PLOT.h - (d.gmv / max) * PLOT.h,
+      y: PAD.top + PLOT.h - (d.value / max) * PLOT.h,
     }));
     const path = points.map((p, i) => `${i ? "L" : "M"}${p.x},${p.y}`).join(" ");
     const area = points.length
@@ -58,9 +80,7 @@ export function RevenueChart({ data }: { data: AdminDailyPoint[] }) {
   if (data.length === 0) {
     return (
       <div className="grid h-[240px] place-items-center rounded-card border border-border bg-surface">
-        <p className="text-label text-text-faint">
-          No settled transactions in this range.
-        </p>
+        <p className="text-label text-text-faint">{emptyText}</p>
       </div>
     );
   }
@@ -98,10 +118,10 @@ export function RevenueChart({ data }: { data: AdminDailyPoint[] }) {
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
         role="img"
-        aria-label={`Daily gross merchandise value, ${data.length} days. The same figures are in the table below.`}
+        aria-label={`${label}, ${data.length} days. The same figures are in the table below.`}
       >
         <defs>
-          <linearGradient id="gmv-fill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.28" />
             <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
           </linearGradient>
@@ -134,7 +154,7 @@ export function RevenueChart({ data }: { data: AdminDailyPoint[] }) {
           );
         })}
 
-        <path d={area} fill="url(#gmv-fill)" />
+        <path d={area} fill={`url(#${fillId})`} />
         <path
           d={path}
           fill="none"
@@ -200,10 +220,9 @@ export function RevenueChart({ data }: { data: AdminDailyPoint[] }) {
           }}
         >
           <p className="text-helper text-text-faint">{shortDay(active.day)}</p>
-          <p className="text-body font-bold text-text">{ngn(active.gmv)}</p>
+          <p className="text-body font-bold text-text">{ngn(active.value)}</p>
           <p className="text-helper text-text-dim">
-            {count(active.transactions)} transaction
-            {active.transactions === 1 ? "" : "s"}
+            {count(active.count)} {active.count === 1 ? countNoun[0] : countNoun[1]}
           </p>
         </div>
       ) : null}
@@ -212,20 +231,20 @@ export function RevenueChart({ data }: { data: AdminDailyPoint[] }) {
           reachable — a chart is not readable by assistive tech, and the
           numbers behind it must be. */}
       <table className="sr-only">
-        <caption>Daily gross merchandise value and transaction count</caption>
+        <caption>{label}</caption>
         <thead>
           <tr>
             <th scope="col">Day</th>
-            <th scope="col">GMV</th>
-            <th scope="col">Transactions</th>
+            <th scope="col">Naira</th>
+            <th scope="col">{countNoun[1]}</th>
           </tr>
         </thead>
         <tbody>
           {data.map((d) => (
             <tr key={d.day}>
               <th scope="row">{d.day}</th>
-              <td>{ngn(d.gmv)}</td>
-              <td>{count(d.transactions)}</td>
+              <td>{ngn(d.value)}</td>
+              <td>{count(d.count)}</td>
             </tr>
           ))}
         </tbody>
