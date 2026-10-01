@@ -1,7 +1,8 @@
 import type { Rate } from "@/types/admin";
 
 /**
- * Formatting for the admin surface.
+ * Formatting for the metric surfaces — the admin console and the organizer
+ * dashboard alike.
  *
  * The one rule that runs through all of it: **a rate is `null`, never `0`,
  * when there was nothing to divide.** `0%` is a measurement — it says the

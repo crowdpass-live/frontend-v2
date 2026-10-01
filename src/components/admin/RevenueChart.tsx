@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ngn, ngnCompact, count, shortDay } from "@/lib/admin-format";
+import { ngn, ngnCompact, count, shortDay } from "@/lib/metric-format";
 import type { AdminDailyPoint } from "@/types/admin";
 
 /**
