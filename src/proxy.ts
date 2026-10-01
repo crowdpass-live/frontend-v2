@@ -17,6 +17,7 @@ import {
  * API checks the bearer on every request regardless.
  *
  * Route groups do not appear in URLs, so the matcher lists the real paths.
+ * `/admin` is gated the same way and signs in at `/admin/login`.
  * Guest paths — `/`, `/events/*`, checkout, `/tickets/[reference]` — are
  * deliberately absent: the ticket reference is bearer-grade, and the URL is
  * the ticket.
@@ -24,6 +25,9 @@ import {
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const here = pathname + search;
+
+  // Admin's own sign-in page has to stay reachable signed out.
+  if (pathname === "/admin/login") return NextResponse.next();
 
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const claims = token ? readClaims(token) : null;
@@ -42,5 +46,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/host/:path*", "/door/:path*"],
+  matcher: ["/account/:path*", "/host/:path*", "/door/:path*", "/admin/:path*"],
 };

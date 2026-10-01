@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { getCurrentUser } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: { default: "Admin", template: "%s · CrowdPass Admin" },
@@ -9,10 +10,14 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
 };
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AdminShell>{children}</AdminShell>;
+  // `undefined` = could not ask. The status page exists for incidents, when
+  // the API may be cold or down; it must still render rather than fail on
+  // the courtesy role check. The panels then report their own errors.
+  const user = await getCurrentUser().catch(() => undefined);
+  return <AdminShell user={user}>{children}</AdminShell>;
 }
