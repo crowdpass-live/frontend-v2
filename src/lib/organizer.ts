@@ -16,6 +16,7 @@ import type {
   ApiOnchainCheckins,
   ApiOrganizerEvents,
   ApiPayouts,
+  ApiTicketAdmin,
   EventStatus,
   TicketStatus,
 } from "@/types/api";
@@ -266,4 +267,16 @@ export function fetchClaimList(eventId: string, ticketTypeId: string) {
   return serverFetch<ApiClaimList>(claimEntriesPath(eventId, ticketTypeId), {
     timeout: 45_000,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Check-in team (#48)
+// ---------------------------------------------------------------------------
+
+/** `GET /organizer/events/:id/ticket-admins` — active delegates only. */
+export function fetchTicketAdmins(eventId: string) {
+  return serverFetch<ApiTicketAdmin[]>(
+    `/organizer/events/${encodeURIComponent(eventId)}/ticket-admins`,
+    { timeout: 45_000 },
+  );
 }
