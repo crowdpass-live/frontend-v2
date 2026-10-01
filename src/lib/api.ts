@@ -1,4 +1,5 @@
 import type { ApiEnvelope } from "@/types/api";
+import { EXPIRED_PATH, expiredUrlFor } from "./session-token";
 
 /**
  * Base URL for the CrowdPass backend, including the `/api` prefix the
@@ -95,6 +96,32 @@ export interface ApiFetchOptions extends Omit<RequestInit, "body"> {
   timeout?: number;
   /** Passed through to Next's extended fetch for server-side caching. */
   next?: { revalidate?: number; tags?: string[] };
+  /**
+   * Send the signed-in user's token. Browser only: the request goes through
+   * the `/api/backend` route handler, which swaps the httpOnly session cookie
+   * for a bearer header, so the token never reaches client JavaScript. Server
+   * code uses `serverFetch()` from `@/lib/api-server` instead.
+   */
+  auth?: boolean;
+}
+
+/**
+ * Set once a 401 has started the redirect, so a page with five queries in
+ * flight produces one trip through the expired route, not five.
+ */
+let leaving = false;
+
+/**
+ * There is no refresh token: a 401 on an authenticated call always means the
+ * session is over. Hand off to the one route that clears the cookie and
+ * sends the user to sign in, then back here.
+ */
+function endSession() {
+  if (leaving || window.location.pathname === EXPIRED_PATH) return;
+  leaving = true;
+  window.location.assign(
+    expiredUrlFor(window.location.pathname + window.location.search),
+  );
 }
 
 /**
@@ -111,14 +138,21 @@ export async function apiFetch<T>(
   path: string,
   options: ApiFetchOptions = {},
 ): Promise<T> {
-  const { body, timeout = 20_000, headers, ...rest } = options;
+  const { body, timeout = 20_000, headers, auth = false, ...rest } = options;
+
+  if (auth && typeof window === "undefined") {
+    throw new Error(
+      "apiFetch({ auth: true }) is browser-only; use serverFetch() from @/lib/api-server on the server.",
+    );
+  }
+  const base = auth ? "/api/backend" : API_BASE;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetch(`${base}${path}`, {
       ...rest,
       headers: {
         Accept: "application/json",
@@ -154,6 +188,7 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
+    if (auth && res.status === 401) endSession();
     throw new ApiError(res.status, messageFrom(parsed, res.statusText), parsed);
   }
 

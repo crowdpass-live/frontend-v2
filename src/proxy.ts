@@ -1,5 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, readClaims, secondsLeft } from "@/lib/session-token";
+import {
+  NEXT_HEADER,
+  SESSION_COOKIE,
+  loginUrlFor,
+  readClaims,
+  secondsLeft,
+} from "@/lib/session-token";
 
 /**
  * Sends a signed-out visitor on a protected path to `/login?next=<path>`.
@@ -16,15 +22,20 @@ import { SESSION_COOKIE, readClaims, secondsLeft } from "@/lib/session-token";
  * the ticket.
  */
 export function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+  const here = pathname + search;
+
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const claims = token ? readClaims(token) : null;
-  if (claims && secondsLeft(claims) > 0) return NextResponse.next();
+  if (claims && secondsLeft(claims) > 0) {
+    // Tell server code where it is, so a 401 deeper down can send the user
+    // back here after they sign in again (`serverFetch`).
+    const headers = new Headers(request.headers);
+    headers.set(NEXT_HEADER, here);
+    return NextResponse.next({ request: { headers } });
+  }
 
-  const { pathname, search } = request.nextUrl;
-  const login = new URL("/login", request.url);
-  login.searchParams.set("next", pathname + search);
-
-  const response = NextResponse.redirect(login);
+  const response = NextResponse.redirect(new URL(loginUrlFor(here), request.url));
   // A dead or malformed cookie would otherwise ride along on every request.
   if (token) response.cookies.delete(SESSION_COOKIE);
   return response;

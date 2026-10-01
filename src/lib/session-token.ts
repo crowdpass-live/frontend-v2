@@ -54,3 +54,49 @@ export function readClaims(token: string): TokenClaims | null {
 export function secondsLeft(claims: TokenClaims, now = Date.now()): number {
   return Math.floor(claims.exp - now / 1000);
 }
+
+// --- where to send someone whose session is missing or dead ---------------
+
+/**
+ * Request header the proxy stamps with the path being rendered, so server
+ * code that hits a 401 knows where to send the user back to. Server
+ * components have no other reliable way to learn their own URL.
+ */
+export const NEXT_HEADER = "x-cp-next";
+
+/**
+ * The one place a dead session goes: clears the cookie, then redirects to
+ * the right sign-in page. Both the server (`serverFetch`) and the browser
+ * (`apiFetch({ auth: true })`) route every 401 through here.
+ */
+export const EXPIRED_PATH = "/api/session/expired";
+
+/**
+ * `next` if it is a path on this origin, else `/`.
+ *
+ * An unchecked `?next=` is an open redirect — a phishing link that bounces
+ * through our real sign-in page to someone else's. `//evil.example` and
+ * `/\evil.example` are protocol-relative to a browser, so they are refused
+ * along with anything absolute. Browsers also strip tabs and newlines from a
+ * URL before parsing it — `/\t/evil.example` becomes `//evil.example` — so any
+ * control character or backslash is refused outright.
+ */
+export function safeNext(next: string | null | undefined): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/";
+  for (const ch of next) {
+    const code = ch.charCodeAt(0);
+    if (code < 0x20 || code === 0x7f || ch === "\\") return "/";
+  }
+  return next;
+}
+
+/** `/admin` keeps its own sign-in page; everything else shares `/login`. */
+export function loginUrlFor(next: string): string {
+  const target = safeNext(next);
+  const page = target.startsWith("/admin") ? "/admin/login" : "/login";
+  return `${page}?next=${encodeURIComponent(target)}`;
+}
+
+export function expiredUrlFor(next: string): string {
+  return `${EXPIRED_PATH}?next=${encodeURIComponent(safeNext(next))}`;
+}
