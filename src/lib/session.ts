@@ -134,3 +134,20 @@ export function sessionCookieOptions(maxAge: number) {
     maxAge,
   };
 }
+
+/**
+ * Store a freshly issued JWT as the session cookie. Returns false — and sets
+ * nothing — when the token is missing, malformed or already expired.
+ *
+ * The one place a session starts, for every route that receives a token
+ * from the API: sign-in (`POST /api/session`) and email verification
+ * (`POST /api/session/verify-email`), which is a new account's first
+ * sign-in. Route handlers only — cookies cannot be set while rendering.
+ */
+export async function startSession(token: string | null | undefined): Promise<boolean> {
+  const claims = token ? readClaims(token) : null;
+  const maxAge = claims ? secondsLeft(claims) : 0;
+  if (!token || maxAge <= 0) return false;
+  (await cookies()).set(SESSION_COOKIE, token, sessionCookieOptions(maxAge));
+  return true;
+}

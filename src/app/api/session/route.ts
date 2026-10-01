@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { ApiError, apiFetch } from "@/lib/api";
-import { sessionCookieOptions } from "@/lib/session";
-import { SESSION_COOKIE, readClaims, secondsLeft } from "@/lib/session-token";
+import { startSession } from "@/lib/session";
+import { SESSION_COOKIE } from "@/lib/session-token";
+import { errorResponse, fromApiError, requireJson } from "@/lib/route-response";
 import { normalizeUser } from "@/lib/normalize";
 import type { LoginResult } from "@/types/api";
 
@@ -35,19 +36,9 @@ const SignIn = z
     message: "Provide an email address or a phone number to sign in",
   });
 
-function errorResponse(status: number, message: string, errors?: unknown) {
-  return NextResponse.json(
-    { statusCode: status, message, ...(errors ? { errors } : null) },
-    { status },
-  );
-}
-
 export async function POST(request: NextRequest) {
-  // A cross-site HTML form cannot send JSON without a CORS preflight, which
-  // this handler never answers — so requiring it rules out login CSRF.
-  if (!request.headers.get("content-type")?.includes("application/json")) {
-    return errorResponse(415, "Expected a JSON body.");
-  }
+  const notJson = requireJson(request);
+  if (notJson) return notJson;
 
   const parsed = SignIn.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -73,23 +64,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     if (!(err instanceof ApiError)) throw err;
-    const body = err.body as { errors?: unknown } | null;
     // Status 0 means we never reached the API: a gateway problem, not the
-    // user's credentials.
-    return errorResponse(err.status || 504, err.message, body?.errors);
+    // user's credentials — fromApiError maps it to 504.
+    return fromApiError(err);
   }
 
-  const claims = result.accessToken ? readClaims(result.accessToken) : null;
-  const maxAge = claims ? secondsLeft(claims) : 0;
-  if (maxAge <= 0) {
+  if (!(await startSession(result.accessToken))) {
     return errorResponse(502, "Sign-in returned an unusable session. Please try again.");
   }
-
-  (await cookies()).set(
-    SESSION_COOKIE,
-    result.accessToken,
-    sessionCookieOptions(maxAge),
-  );
 
   // The same SessionUser shape /auth/me produces (minus profile and wallets,
   // which login does not carry) — and never the token.
