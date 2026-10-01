@@ -99,9 +99,16 @@ export function VerifyEmailForm({
         sub="Your email is confirmed and you're signed in."
         pose="success"
       >
-        <ButtonLink href={next ?? "/"} replace className="w-full">
-          {next ? "Continue" : "Browse events"}
-        </ButtonLink>
+        <div className="flex flex-col gap-3">
+          <ButtonLink href={next ?? "/"} replace className="w-full">
+            {next ? "Continue" : "Browse events"}
+          </ButtonLink>
+          <p className="text-label text-text-dim">
+            We filled in your name from your email.{" "}
+            <AuthLink href="/account">Set your real name</AuthLink> — the one on your NIN or BVN —
+            before you host an event.
+          </p>
+        </div>
       </AuthPanel>
     );
   }

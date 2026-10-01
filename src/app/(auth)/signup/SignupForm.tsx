@@ -7,28 +7,22 @@ import { ApiError } from "@/lib/api";
 import { PASSWORD_MIN, describeAuthError, register } from "@/lib/auth";
 import { AuthLink, AuthPanel } from "@/components/auth/AuthPanel";
 import { TextField } from "@/components/TextField";
-import { LockIcon, MailIcon, PersonIcon } from "@/components/icons";
+import { LockIcon, MailIcon } from "@/components/icons";
 import { Button, ErrorNote, Spinner } from "@/components/ui";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Create an account (#68). Ports `SignupScreen.js`, with one deliberate
- * difference: it asks for the person's REAL first and last name.
- *
- * Mobile derives a placeholder from the email (`provisionalName()`), and
- * that placeholder is what later fails identity verification — KYC matches
- * the profile name against the ID and burns a limited daily attempt on a
- * mismatch. The backend requires both names anyway; asking for them here,
- * with the reason, costs one field and saves a failed verification.
+ * Create an account (#68). Ports `SignupScreen.js`: email and password
+ * only. A placeholder name is filled from the email (`provisionalName`),
+ * and the account page asks for the real one later (#27) — before identity
+ * verification needs it.
  *
  * An email signup gets no session yet: the account is created, a 6-digit
  * code is emailed, and the next step is `/verify-email`.
  */
 export function SignupForm({ next }: { next?: string }) {
   const router = useRouter();
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [touched, setTouched] = useState(false);
@@ -36,15 +30,13 @@ export function SignupForm({ next }: { next?: string }) {
   const [exists, setExists] = useState(false);
 
   const problems = {
-    firstName: !firstName.trim() ? "Enter your first name" : undefined,
-    lastName: !lastName.trim() ? "Enter your last name" : undefined,
     email: !EMAIL.test(email.trim()) ? "Enter a valid email address" : undefined,
     password: password.length < PASSWORD_MIN ? `At least ${PASSWORD_MIN} characters` : undefined,
   };
   const valid = !Object.values(problems).some(Boolean);
 
   const signup = useMutation({
-    mutationFn: () => register({ firstName, lastName, email, password }),
+    mutationFn: () => register({ email, password }),
     onSuccess: () => {
       const params = new URLSearchParams({ email: email.trim().toLowerCase(), sent: "1" });
       if (next) params.set("next", next);
@@ -88,32 +80,6 @@ export function SignupForm({ next }: { next?: string }) {
           if (valid) signup.mutate();
         }}
       >
-        <div className="grid grid-cols-1 gap-4 min-[400px]:grid-cols-2">
-          <TextField
-            label="First name"
-            icon={<PersonIcon />}
-            autoComplete="given-name"
-            autoCapitalize="words"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            error={show("firstName")}
-            maxLength={100}
-            required
-          />
-          <TextField
-            label="Last name"
-            autoComplete="family-name"
-            autoCapitalize="words"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            error={show("lastName")}
-            maxLength={100}
-            required
-          />
-        </div>
-        <p className="-mt-2 text-helper text-text-faint">
-          As it appears on your ID — if you ever host events, we check it against your BVN or NIN.
-        </p>
         <TextField
           label="Email"
           icon={<MailIcon />}

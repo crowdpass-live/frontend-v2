@@ -1,4 +1,5 @@
 import { ApiError, apiFetch } from "./api";
+import { provisionalName } from "./names";
 
 /**
  * The public account endpoints that issue no token, so the browser calls
@@ -12,8 +13,6 @@ import { ApiError, apiFetch } from "./api";
 export const PASSWORD_MIN = 8;
 
 export interface RegisterInput {
-  firstName: string;
-  lastName: string;
   email: string;
   password: string;
 }
@@ -23,20 +22,16 @@ export interface RegisterInput {
  * verified (`accessToken: null`) — that is success, not failure. 409 =
  * "Email already registered".
  *
- * Real names, not mobile's email-derived `provisionalName()`: the backend
- * requires them, and identity verification (KYC) later matches the profile
- * name against the ID. A placeholder name burns a limited daily attempt.
+ * Email and password only, as on mobile. `RegisterDto` requires both names,
+ * so the email-derived placeholder fills them; the account page asks for
+ * the real name before identity verification needs it (#27).
  */
 export function register(input: RegisterInput) {
+  const email = input.email.trim().toLowerCase();
   return apiFetch<{ accessToken: string | null; message?: string }>("/auth/register", {
     method: "POST",
     // Only the declared fields: forbidNonWhitelisted 400s on anything else.
-    body: {
-      firstName: input.firstName.trim(),
-      lastName: input.lastName.trim(),
-      email: input.email.trim().toLowerCase(),
-      password: input.password,
-    },
+    body: { ...provisionalName(email), email, password: input.password },
     timeout: 45_000,
   });
 }
