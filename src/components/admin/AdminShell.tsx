@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { clearSession } from "@/lib/admin-auth";
-import { useAdminSession } from "@/lib/use-admin-session";
-import { useHydrated } from "@/lib/use-hydrated";
+import type { SessionUser } from "@/lib/normalize";
+import { signOut, subscribeSession } from "@/lib/session-client";
+import { expiredUrlFor } from "@/lib/session-token";
 import { Logo } from "@/components/Logo";
 import { BrandSpinner } from "@/components/BrandSpinner";
 import { Container, cx } from "@/components/ui";
@@ -16,35 +16,58 @@ const NAV = [
 ];
 
 /**
- * Admin chrome and the sign-in gate.
+ * Admin chrome and the role courtesy check.
  *
- * The gate is a courtesy, not a boundary. Every `/admin/*` route on the API is
- * `@Roles(UserRole.ADMIN)` and answers 403 to anything else, so a forged
- * localStorage session buys an empty dashboard, not data. What this does is
- * stop someone who signed in as an ORGANIZER from staring at a wall of failed
- * requests without being told why — a different and much more common problem
- * than an attacker.
+ * `user` comes from the server (`getCurrentUser()` in the layout), read off
+ * the shared httpOnly session — the same sign-in as the rest of the app.
+ * `null` means the API rejected the session; `undefined` means it could not
+ * be asked (cold start, outage), in which case the shell renders anyway so
+ * the status page still works during an incident.
+ *
+ * The role check is a courtesy, not a boundary. Every `/admin/*` route on the
+ * API is `@Roles(UserRole.ADMIN)` and answers 403 to anything else. What this
+ * does is stop someone who signed in as an ORGANIZER from staring at a wall
+ * of failed requests without being told why — a different and much more
+ * common problem than an attacker.
  */
-export function AdminShell({ children }: { children: React.ReactNode }) {
-  const session = useAdminSession();
-  const hydrated = useHydrated();
+export function AdminShell({
+  user,
+  children,
+}: {
+  user: SessionUser | null | undefined;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
-
   const onLoginPage = pathname === "/admin/login";
-  const signedIn = !!session;
-  const isAdmin = session?.user.role === "ADMIN";
+  const rejected = user === null && !onLoginPage;
 
+  // The cookie is httpOnly, so another tab's sign-out is only visible
+  // through the broadcast. Re-read the server session either way.
+  useEffect(
+    () =>
+      subscribeSession((change) => {
+        if (change === "signed-out") router.replace("/admin/login");
+        router.refresh();
+      }),
+    [router],
+  );
+
+  // A dead token: clear it through the one expired-session path.
   useEffect(() => {
-    if (!hydrated || onLoginPage) return;
-    if (!signedIn) router.replace("/admin/login");
-  }, [hydrated, onLoginPage, signedIn, router]);
+    if (rejected) window.location.assign(expiredUrlFor(pathname));
+  }, [rejected, pathname]);
+
+  async function leave() {
+    await signOut();
+    router.replace("/admin/login");
+    router.refresh();
+  }
 
   // The login page carries its own layout.
   if (onLoginPage) return <>{children}</>;
 
-  // Storage is unreadable during SSR, so hold rather than flash "signed out".
-  if (!hydrated || (!signedIn && !onLoginPage)) {
+  if (rejected) {
     return (
       <div className="grid min-h-dvh place-items-center">
         <BrandSpinner width={88} label="Checking your session" />
@@ -52,7 +75,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAdmin) {
+  if (user && user.role !== "ADMIN") {
     return (
       <div className="grid min-h-dvh place-items-center px-6">
         <div className="flex max-w-md flex-col items-center gap-5 text-center">
@@ -60,17 +83,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <h1 className="text-title font-bold text-text">Admin only</h1>
           <p className="text-body text-text-dim">
             You&apos;re signed in as{" "}
-            <span className="text-text">{session?.user.email}</span>, which is a{" "}
-            <span className="text-text">{session?.user.role}</span> account.
-            These pages expose revenue across every organizer, so the API
-            refuses them to anything but an ADMIN.
+            <span className="text-text">{user.email || user.name}</span>, which
+            is a <span className="text-text">{user.role}</span> account. These
+            pages expose revenue across every organizer, so the API refuses
+            them to anything but an ADMIN.
           </p>
           <button
             type="button"
-            onClick={() => {
-              clearSession();
-              router.replace("/admin/login");
-            }}
+            onClick={leave}
             className="text-body font-bold text-accent hover:text-accent-hi"
           >
             Sign in as someone else
@@ -117,10 +137,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
           <button
             type="button"
-            onClick={() => {
-              clearSession();
-              router.replace("/admin/login");
-            }}
+            onClick={leave}
             className="shrink-0 text-label text-text-faint transition-colors hover:text-text"
           >
             Sign out

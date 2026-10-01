@@ -150,20 +150,3 @@ export interface QueueDepth {
   failed: number;
   healthy: boolean;
 }
-
-// ---------------------------------------------------------------------------
-// Auth
-// ---------------------------------------------------------------------------
-
-export interface AuthUser {
-  id: string;
-  email: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  role: "BUYER" | "ORGANIZER" | "ADMIN";
-}
-
-export interface LoginResult {
-  accessToken: string;
-  user: AuthUser;
-}
