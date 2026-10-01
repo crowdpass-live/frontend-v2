@@ -4,7 +4,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { ApiError, apiFetch } from "./api";
 import { SESSION_COOKIE, readClaims, secondsLeft } from "./session-token";
-import type { AuthUser } from "@/types/admin";
+import { normalizeUser, type SessionUser } from "./normalize";
 
 /**
  * The signed-in user's session, readable by server code only.
@@ -55,14 +55,15 @@ export const getSession = cache(async (): Promise<Session | null> => {
  * fresh per request (`no-store`) and deduplicated within it, so a role change
  * shows up on the next page load without signing in again.
  */
-export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const session = await getSession();
   if (!session) return null;
   try {
-    return await apiFetch<AuthUser>("/auth/me", {
+    const me = await apiFetch<unknown>("/auth/me", {
       headers: { Authorization: `Bearer ${session.accessToken}` },
       cache: "no-store",
     });
+    return normalizeUser(me);
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return null;
     throw err;

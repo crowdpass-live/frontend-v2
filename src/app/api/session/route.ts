@@ -4,7 +4,8 @@ import { z } from "zod";
 import { ApiError, apiFetch } from "@/lib/api";
 import { sessionCookieOptions } from "@/lib/session";
 import { SESSION_COOKIE, readClaims, secondsLeft } from "@/lib/session-token";
-import type { AuthUser, LoginResult } from "@/types/admin";
+import { normalizeUser } from "@/lib/normalize";
+import type { LoginResult } from "@/types/api";
 
 /**
  * `POST /api/session` signs in; `DELETE /api/session` signs out.
@@ -90,10 +91,9 @@ export async function POST(request: NextRequest) {
     sessionCookieOptions(maxAge),
   );
 
-  // Only what the client needs to route the user; never the token.
-  const { id, email: userEmail, firstName, lastName, role } = result.user;
-  const user: AuthUser = { id, email: userEmail, firstName, lastName, role };
-  return NextResponse.json({ user });
+  // The same SessionUser shape /auth/me produces (minus profile and wallets,
+  // which login does not carry) — and never the token.
+  return NextResponse.json({ user: normalizeUser(result.user) });
 }
 
 export async function DELETE() {

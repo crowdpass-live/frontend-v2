@@ -5,8 +5,8 @@ import type {
   AdminMetrics,
   AdminOps,
   HealthReport,
-  LoginResult,
 } from "@/types/admin";
+import type { LoginResult } from "@/types/api";
 
 /** `to` is EXCLUSIVE. Both optional; the API defaults to the last 30 days. */
 export interface MetricsRange {

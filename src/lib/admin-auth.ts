@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthUser } from "@/types/admin";
+import type { AuthUser } from "@/types/api";
 
 /**
  * Admin session, held in `localStorage`.
