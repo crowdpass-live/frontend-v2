@@ -111,7 +111,7 @@ export function AccountMenuButton({
               <Link
                 href={link.href}
                 className={cx(
-                  "block rounded-control px-3 py-2.5 text-label transition-colors hover:bg-surface-strong",
+                  "flex min-h-11 items-center rounded-control px-3 text-label transition-colors hover:bg-surface-strong",
                   pathname === link.href ? "text-text" : "text-text-dim",
                 )}
                 aria-current={pathname === link.href ? "page" : undefined}
@@ -126,7 +126,7 @@ export function AccountMenuButton({
             type="button"
             onClick={leave}
             disabled={leaving}
-            className="w-full rounded-control px-3 py-2.5 text-left text-label text-text-dim transition-colors hover:bg-surface-strong hover:text-text disabled:opacity-45"
+            className="flex min-h-11 w-full items-center rounded-control px-3 text-left text-label text-text-dim transition-colors hover:bg-surface-strong hover:text-text disabled:opacity-45"
           >
             {leaving ? "Signing out…" : "Sign out"}
           </button>

@@ -86,7 +86,7 @@ export default async function HostEventAttendeesPage({
           name="search"
           type="search"
           defaultValue={search}
-          placeholder="Search by name or email"
+          placeholder="Name or email"
           maxLength={100}
           className="h-10 min-w-0 flex-1 rounded-control border border-border bg-surface px-4 text-body text-text placeholder:text-text-faint"
         />
@@ -105,7 +105,7 @@ export default async function HostEventAttendeesPage({
                   href={hrefFor({ status: s })}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "block whitespace-nowrap rounded-full border px-4 py-2 text-label transition-colors",
+                    "flex min-h-10 items-center whitespace-nowrap rounded-full border px-4 text-label transition-colors",
                     active
                       ? "border-accent bg-accent-tint text-text"
                       : "border-border bg-surface text-text-dim hover:text-text",
@@ -139,9 +139,27 @@ export default async function HostEventAttendeesPage({
                     {STATUS[a.status]?.label ?? a.status}
                   </Badge>
                 </div>
-                <p className="truncate text-label text-text-dim">
-                  {[a.buyerEmail, a.buyerPhone].filter(Boolean).join(" · ") || "No contact details"}
-                </p>
+                {/* One per line: on a phone the number is what gets tapped,
+                    and sharing a line with the email truncated it away. */}
+                {a.buyerEmail || a.buyerPhone ? (
+                  <div className="flex flex-col text-label">
+                    {a.buyerEmail ? (
+                      <span className="truncate text-text-dim">{a.buyerEmail}</span>
+                    ) : null}
+                    {a.buyerPhone ? (
+                      // Tap to call — a full-size target, since this is the
+                      // number an organizer rings from the gate.
+                      <a
+                        href={`tel:${a.buyerPhone}`}
+                        className="-my-1 inline-flex min-h-10 w-fit items-center text-text-dim underline decoration-border underline-offset-4"
+                      >
+                        {a.buyerPhone}
+                      </a>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-label text-text-faint">No contact details</p>
+                )}
                 <p className="text-helper text-text-faint">
                   {a.ticketType} · {a.ticketReference}
                 </p>

@@ -10,13 +10,13 @@ export default function HostDashboardLoading() {
         <Skeleton className="h-7 w-64 max-w-full" />
         <Skeleton className="h-5 w-80 max-w-full" />
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-[104px] rounded-card" />
+          <Skeleton key={i} className={i === 0 ? "col-span-2 h-[104px] rounded-card sm:col-span-1" : "h-[104px] rounded-card"} />
         ))}
       </div>
       <Skeleton className="h-72 rounded-card" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[0, 1, 2].map((i) => (
           <Skeleton key={i} className="h-64 rounded-card" />
         ))}

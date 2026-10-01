@@ -65,7 +65,7 @@ export function AppShell({
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cx(
-                      "whitespace-nowrap rounded-full px-3 py-2 text-label font-medium transition-colors sm:px-4",
+                      "inline-flex min-h-10 items-center whitespace-nowrap rounded-full px-3 text-label font-medium transition-colors sm:px-4",
                       active
                         ? "bg-surface text-text"
                         : "text-text-dim hover:bg-surface hover:text-text",

@@ -359,7 +359,7 @@ export function MemberListManager({
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or matric number"
+            placeholder="Name or matric number"
             className="h-10 w-full rounded-control border border-border bg-surface px-4 text-body text-text placeholder:text-text-faint"
           />
 
@@ -372,39 +372,48 @@ export function MemberListManager({
               {visible.slice(0, VISIBLE_ROWS).map((e) => {
                 const st = STATUS[e.status] ?? { label: e.status, tone: "neutral" as const };
                 return (
-                  <li key={e.id} className="flex items-center gap-3 px-4 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-body text-text">{e.fullName}</p>
-                      <p className="font-mono text-helper text-text-faint">
-                        {e.matNo}
-                        {e.status !== "CLAIMED" && e.failedAttempts > 0
-                          ? ` · ${e.failedAttempts} wrong attempt${e.failedAttempts === 1 ? "" : "s"}`
-                          : ""}
-                      </p>
+                  <li
+                    key={e.id}
+                    className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-3"
+                  >
+                    {/* Phones: name and status on one line, the actions on
+                        their own below, so neither squeezes the name. */}
+                    <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-body text-text">{e.fullName}</p>
+                        <p className="font-mono text-helper text-text-faint">
+                          {e.matNo}
+                          {e.status !== "CLAIMED" && e.failedAttempts > 0
+                            ? ` · ${e.failedAttempts} wrong attempt${e.failedAttempts === 1 ? "" : "s"}`
+                            : ""}
+                        </p>
+                      </div>
+                      <Badge tone={st.tone} className="shrink-0">{st.label}</Badge>
                     </div>
-                    <Badge tone={st.tone} className="shrink-0">{st.label}</Badge>
-                    {editable && e.status === "LOCKED" ? (
-                      <button
-                        type="button"
-                        onClick={() => unlock(e)}
-                        disabled={unlocking === e.id}
-                        className="shrink-0 rounded-full px-3 py-1.5 text-label font-bold text-accent hover:bg-accent-tint disabled:opacity-45"
-                      >
-                        {unlocking === e.id ? "Unlocking…" : "Unlock"}
-                      </button>
-                    ) : null}
                     {editable && e.status !== "CLAIMED" ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRemoveError(null);
-                          setRemoving(e);
-                        }}
-                        aria-label={`Remove ${e.fullName}`}
-                        className="shrink-0 rounded-full px-3 py-1.5 text-label text-text-faint hover:bg-danger/10 hover:text-danger"
-                      >
-                        Remove
-                      </button>
+                      <div className="-ml-3 flex items-center gap-1 sm:ml-0 sm:shrink-0">
+                        {e.status === "LOCKED" ? (
+                          <button
+                            type="button"
+                            onClick={() => unlock(e)}
+                            disabled={unlocking === e.id}
+                            className="h-10 rounded-full px-3 text-label font-bold text-accent hover:bg-accent-tint disabled:opacity-45"
+                          >
+                            {unlocking === e.id ? "Unlocking…" : "Unlock"}
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRemoveError(null);
+                            setRemoving(e);
+                          }}
+                          aria-label={`Remove ${e.fullName}`}
+                          className="h-10 rounded-full px-3 text-label text-text-faint hover:bg-danger/10 hover:text-danger"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     ) : null}
                   </li>
                 );

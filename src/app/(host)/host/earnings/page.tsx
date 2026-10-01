@@ -31,7 +31,7 @@ export default async function HostEarningsPage() {
         </p>
       </header>
 
-      <section aria-label="Summary" className="grid gap-3 sm:grid-cols-3">
+      <section aria-label="Summary" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatTile tone="accent" label="Earned" value={ngnCompact(totalEarned)} title={ngn(totalEarned)} />
         <StatTile label="Events" value={count(events.length)} />
       </section>

@@ -26,29 +26,36 @@ export function OrganizerEventCard({ event }: { event: ApiOrganizerEvent }) {
     ? Math.min(100, Math.round((stats.ticketsSold / stats.totalTickets) * 100))
     : null;
 
+  const badge = <Badge tone={status.tone}>{status.label}</Badge>;
+
   return (
     <Link
       href={`/host/events/${event.id}`}
-      className="group flex w-full flex-col overflow-hidden rounded-card border border-border bg-surface transition-colors hover:border-border-strong"
+      // Phones: a compact row (thumbnail beside the details), so a dozen
+      // events is a scan, not a scroll of full-width covers. sm+: a card.
+      className="group flex w-full flex-row overflow-hidden rounded-card border border-border bg-surface transition-colors hover:border-border-strong sm:flex-col"
     >
-      <div className="relative aspect-[16/7] bg-surface-strong">
+      <div className="relative aspect-square w-24 shrink-0 bg-surface-strong sm:aspect-[16/7] sm:w-auto">
         <CoverImage
           src={event.coverImage}
-          sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw"
+          sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 96px"
           className="transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:transition-none"
         />
-        <Badge tone={status.tone} className="absolute left-3 top-3 bg-bg/80 backdrop-blur">
-          {status.label}
-        </Badge>
+        {/* Wrapped, not toggled on the Badge itself: `hidden` against the
+            badge's own `inline-flex` would be decided by stylesheet order. */}
+        <span className="absolute left-3 top-3 hidden sm:block">{badge}</span>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 p-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 p-3 sm:gap-4 sm:p-4">
         <div className="min-w-0">
           <h3 className="truncate text-body font-bold text-text">{event.name}</h3>
-          <p className="text-helper text-text-faint">{formatDate(event.startTime)}</p>
+          <div className="flex items-center gap-2">
+            <span className="sm:hidden">{badge}</span>
+            <p className="truncate text-helper text-text-faint">{formatDate(event.startTime)}</p>
+          </div>
         </div>
 
-        <div className="mt-auto flex flex-col gap-2">
+        <div className="mt-auto flex flex-col gap-1.5 sm:gap-2">
           <div className="flex items-baseline justify-between gap-3 text-label">
             <span className="text-text-dim">
               <span className="font-bold tabular-nums text-text">

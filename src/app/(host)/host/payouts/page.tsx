@@ -60,8 +60,8 @@ export default async function HostPayoutsPage({
         </p>
       </header>
 
-      <section aria-label="Summary" className="grid gap-3 sm:grid-cols-3">
-        <StatTile tone="accent" label="Paid out" value={tokenAmount(summary.totalPaid, SUMMARY_CURRENCY)} />
+      <section aria-label="Summary" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatTile tone="accent" className="col-span-2 sm:col-span-1" label="Paid out" value={tokenAmount(summary.totalPaid, SUMMARY_CURRENCY)} />
         <StatTile
           label="In progress"
           value={tokenAmount(summary.pendingAmount, SUMMARY_CURRENCY)}
@@ -97,7 +97,7 @@ export default async function HostPayoutsPage({
                             href={link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 font-mono text-text-dim underline-offset-2 hover:text-text hover:underline"
+                            className="-my-3 inline-flex items-center gap-1 py-3 font-mono text-text-dim underline-offset-2 hover:text-text hover:underline"
                           >
                             {shortHash(p.providerReference)}
                             <ExternalLinkIcon width={12} height={12} />

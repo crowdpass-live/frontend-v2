@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ngn, ngnCompact, count, shortDay } from "@/lib/metric-format";
 
 /** One day: naira on the axis, a count (transactions, tickets) in the tooltip. */
@@ -26,12 +26,17 @@ export interface DailyPoint {
  * not printed on every point; the axis and the tooltip carry them.
  */
 
-const VB = { w: 760, h: 240 };
+/**
+ * Drawn at the container's real pixel width, not a fixed viewBox stretched
+ * to fit. A stretched 760-wide canvas on a 320px phone shrinks the 11px axis
+ * labels to ~5px and squashes them sideways (`preserveAspectRatio="none"`
+ * scales text too); measuring keeps one SVG unit = one CSS pixel at every
+ * width. 760 is only the first paint, before the measurement lands.
+ */
+const HEIGHT = 240;
 const PAD = { top: 16, right: 12, bottom: 26, left: 54 };
-const PLOT = {
-  w: VB.w - PAD.left - PAD.right,
-  h: VB.h - PAD.top - PAD.bottom,
-};
+/** Minimum room per x-axis date label, so they never collide. */
+const LABEL_SPACING = 64;
 
 /** A rounded axis maximum, so gridline labels are readable numbers. */
 function niceMax(value: number): number {
@@ -57,6 +62,21 @@ export function DailyRevenueChart({
   emptyText: string;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(760);
+  useEffect(() => {
+    if (!frame) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setWidth(Math.max(240, Math.round(entry.contentRect.width)));
+    });
+    ro.observe(frame);
+    return () => ro.disconnect();
+  }, [frame]);
+  const VB = { w: width, h: HEIGHT };
+  const PLOT = {
+    w: VB.w - PAD.left - PAD.right,
+    h: VB.h - PAD.top - PAD.bottom,
+  };
   // Two charts on one page must not share a gradient id.
   const fillId = `daily-fill-${useId().replace(/:/g, "")}`;
   const [hover, setHover] = useState<number | null>(null);
@@ -75,7 +95,7 @@ export function DailyRevenueChart({
       ? `${path} L${points[points.length - 1].x},${PAD.top + PLOT.h} L${points[0].x},${PAD.top + PLOT.h} Z`
       : "";
     return { points, max, path, area };
-  }, [data]);
+  }, [data, PLOT.w, PLOT.h]);
 
   if (data.length === 0) {
     return (
@@ -106,10 +126,11 @@ export function DailyRevenueChart({
 
   const gridValues = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max);
   // Enough x labels to orient without collision at any width.
-  const labelEvery = Math.max(1, Math.ceil(data.length / 6));
+  const labelSlots = Math.max(2, Math.floor(PLOT.w / LABEL_SPACING));
+  const labelEvery = Math.max(1, Math.ceil(data.length / labelSlots));
 
   return (
-    <div className="relative">
+    <div ref={setFrame} className="relative">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${VB.w} ${VB.h}`}
@@ -146,7 +167,7 @@ export function DailyRevenueChart({
                 x={PAD.left - 10}
                 y={y + 4}
                 textAnchor="end"
-                className="fill-[var(--color-text-faint)] text-[11px]"
+                className="fill-[var(--color-text-faint)] text-[12px]"
               >
                 {v === 0 ? "0" : ngnCompact(v)}
               </text>
@@ -172,7 +193,7 @@ export function DailyRevenueChart({
               x={p.x}
               y={VB.h - 8}
               textAnchor={i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}
-              className="fill-[var(--color-text-faint)] text-[11px]"
+              className="fill-[var(--color-text-faint)] text-[12px]"
             >
               {shortDay(p.day)}
             </text>
