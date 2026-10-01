@@ -13,9 +13,9 @@ import {
   stamp,
   titleCase,
   NO_VALUE,
-} from "@/lib/admin-format";
+} from "@/lib/metric-format";
 import { RevenueChart } from "./RevenueChart";
-import { Panel, StatRow, StatTile } from "./StatTile";
+import { Panel, StatRow, StatTile } from "@/components/StatTile";
 import { BrandSpinner } from "@/components/BrandSpinner";
 import { Button, Card, Container, ErrorNote, cx } from "@/components/ui";
 import { ApiError } from "@/lib/api";

@@ -1,4 +1,4 @@
-import { NO_VALUE } from "@/lib/admin-format";
+import { NO_VALUE } from "@/lib/metric-format";
 import { cx } from "@/components/ui";
 
 /**
