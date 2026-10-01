@@ -22,7 +22,11 @@ export default function HostGroupLayout({
     <AppShell
       label="Host"
       home="/host"
-      nav={[{ href: "/host", label: "Dashboard" }]}
+      nav={[
+        { href: "/host", label: "Dashboard", also: ["/host/events/"] },
+        { href: "/host/payouts", label: "Payouts" },
+        { href: "/host/earnings", label: "Earnings" },
+      ]}
       account={<AccountSlot />}
     >
       {children}

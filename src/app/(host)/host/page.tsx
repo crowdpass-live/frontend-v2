@@ -12,6 +12,7 @@ import { count, ngn, ngnCompact } from "@/lib/metric-format";
 import { Mascot } from "@/components/Mascot";
 import { Panel, StatTile } from "@/components/StatTile";
 import { OrganizerEventCard } from "@/components/host/OrganizerEventCard";
+import { Pager } from "@/components/Pager";
 import { SoldByEventChart } from "@/components/host/SoldByEventChart";
 import { ButtonLink, Container, cx } from "@/components/ui";
 import type { EventStatus } from "@/types/api";
@@ -170,50 +171,13 @@ export default async function HostDashboardPage({
           </ul>
         )}
 
-        {list.pagination.totalPages > 1 ? (
-          <nav aria-label="Pages" className="flex items-center justify-between gap-3">
-            <PageLink href={hrefFor(status, page - 1)} disabled={page <= 1}>
-              Previous
-            </PageLink>
-            <span className="text-helper text-text-faint">
-              Page {page} of {list.pagination.totalPages}
-            </span>
-            <PageLink
-              href={hrefFor(status, page + 1)}
-              disabled={page >= list.pagination.totalPages}
-            >
-              Next
-            </PageLink>
-          </nav>
-        ) : null}
+        <Pager
+          page={page}
+          totalPages={list.pagination.totalPages}
+          hrefFor={(n) => hrefFor(status, n)}
+        />
       </section>
     </Container>
-  );
-}
-
-function PageLink({
-  href,
-  disabled,
-  children,
-}: {
-  href: string;
-  disabled: boolean;
-  children: React.ReactNode;
-}) {
-  if (disabled) {
-    return (
-      <span className="rounded-full px-4 py-2 text-label text-text-faint opacity-50">
-        {children}
-      </span>
-    );
-  }
-  return (
-    <Link
-      href={href}
-      className="rounded-full border border-border bg-surface px-4 py-2 text-label text-text-dim transition-colors hover:text-text"
-    >
-      {children}
-    </Link>
   );
 }
 

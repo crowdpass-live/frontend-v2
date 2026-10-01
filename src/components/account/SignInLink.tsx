@@ -14,7 +14,7 @@ export function SignInLink() {
       ? `/login?next=${encodeURIComponent(pathname)}`
       : "/login";
   return (
-    <ButtonLink href={href} variant="secondary" className="h-10 whitespace-nowrap px-4 text-label">
+    <ButtonLink href={href} variant="secondary" size="sm" className="whitespace-nowrap">
       Sign in
     </ButtonLink>
   );

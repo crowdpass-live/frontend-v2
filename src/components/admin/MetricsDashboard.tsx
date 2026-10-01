@@ -14,7 +14,7 @@ import {
   titleCase,
   NO_VALUE,
 } from "@/lib/metric-format";
-import { RevenueChart } from "./RevenueChart";
+import { DailyRevenueChart } from "@/components/DailyRevenueChart";
 import { Panel, StatRow, StatTile } from "@/components/StatTile";
 import { BrandSpinner } from "@/components/BrandSpinner";
 import { Button, Card, Container, ErrorNote, cx } from "@/components/ui";
@@ -171,7 +171,16 @@ export function MetricsDashboard() {
         ) : daily.isError ? (
           <ErrorNote>Could not load the daily series.</ErrorNote>
         ) : (
-          <RevenueChart data={daily.data} />
+          <DailyRevenueChart
+            data={daily.data.map((d) => ({
+              day: d.day,
+              value: d.gmv,
+              count: d.transactions,
+            }))}
+            label="Daily gross merchandise value"
+            countNoun={["transaction", "transactions"]}
+            emptyText="No settled transactions in this range."
+          />
         )}
       </Panel>
 
