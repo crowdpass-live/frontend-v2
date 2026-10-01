@@ -41,7 +41,9 @@ export async function AccountMenu() {
   // `isOrganizer` gates host; the door is gated on delegation rows, never on
   // the role — a delegate is a plain BUYER and must still see it.
   if (user.isOrganizer) links.push({ href: "/host", label: "Host dashboard" });
-  if (doors?.length) links.push({ href: "/door", label: "At the door" });
+  // Organizers may scan their own events without a grant, so they always
+  // have a door; delegates only when a grant exists.
+  if (user.isOrganizer || doors?.length) links.push({ href: "/door", label: "At the door" });
   links.push({ href: "/account", label: "Account" });
   if (!user.isOrganizer) links.push({ href: "/host", label: "Host an event" });
 

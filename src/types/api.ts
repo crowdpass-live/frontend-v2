@@ -646,3 +646,52 @@ export interface ApiClaimList {
   /** Sorted by full name. The whole list — this route does not paginate. */
   entries: ApiClaimEntry[];
 }
+
+// ---------------------------------------------------------------------------
+// The door — resolve, verify, check in
+// ---------------------------------------------------------------------------
+
+/**
+ * `POST /tickets/resolve-qr` — any scanned string to a ticket reference.
+ * `expired` means an old signed QR: the ticket itself may be fine, so the
+ * door is told to check the name, not refused.
+ */
+export interface ApiResolvedQr {
+  reference: string;
+  source: "reference" | "signed_token";
+  expired: boolean;
+}
+
+interface DoorTicket {
+  reference: string;
+  status: TicketStatus;
+  buyerName: string | null;
+  ticketType: string;
+  /** BigInt, as a string; null while the mint is pending. */
+  tokenId: string | null;
+  checkedInAt: string | null;
+  message: string;
+}
+
+/**
+ * `POST /tickets/:reference/verify` — read-only. An invalid ticket is a 200
+ * with `valid: false` and the reason in `message` (already used, wrong
+ * event, cancelled…), not an error; a 403 means this account may not work
+ * this door.
+ */
+export type ApiDoorVerification =
+  | (DoorTicket & { valid: true })
+  | (DoorTicket & { valid: false });
+
+/**
+ * `POST /tickets/:reference/checkin` — marks USED and queues the on-chain
+ * check-in. Unlike verify, every refusal is a 4xx.
+ */
+export interface ApiCheckInResult {
+  reference: string;
+  status: "USED";
+  buyerName: string | null;
+  ticketType: string;
+  checkedInAt: string;
+  message: string;
+}

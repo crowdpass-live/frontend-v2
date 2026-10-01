@@ -12,6 +12,9 @@ export function EventTabs({ eventId }: { eventId: string }) {
     { href: base, label: "Overview" },
     { href: `${base}/attendees`, label: "Attendees" },
     { href: `${base}/members`, label: "Member lists" },
+    // Opens the door console (its own shell) — an organizer may always scan
+    // their own event, no grant needed.
+    { href: `/door/${eventId}`, label: "Check-in" },
   ];
   return (
     <nav aria-label="Event sections" className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
