@@ -37,6 +37,8 @@ const BUTTON_VARIANTS = {
   secondary:
     "bg-surface text-text border border-border hover:bg-surface-strong",
   ghost: "bg-transparent text-text-dim hover:text-text",
+  // Irreversible actions only (remove, cancel). White on red, unlike orange.
+  danger: "bg-danger text-text hover:bg-danger/85 disabled:hover:bg-danger",
 } as const;
 
 type ButtonVariant = keyof typeof BUTTON_VARIANTS;

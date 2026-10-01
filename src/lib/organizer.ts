@@ -3,8 +3,13 @@ import "server-only";
 import { cache } from "react";
 import { serverFetch } from "./api-server";
 import { fetchEventBySlug } from "./crowdpass";
+import { claimEntriesPath } from "./claim-list";
+import { apiFetch } from "./api";
 import type {
   ApiAttendees,
+  ApiClaimList,
+  ApiEvent,
+  ApiTicketType,
   ApiBeneficiaryEarnings,
   ApiEventAnalytics,
   ApiOnchainBalance,
@@ -196,6 +201,69 @@ export async function chainsForEvents(eventIds: string[]): Promise<Map<string, s
 
 export function fetchBeneficiaryEarnings() {
   return serverFetch<ApiBeneficiaryEarnings>("/organizer/beneficiary-earnings", {
+    timeout: 45_000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Member lists (claim-only ticket types)
+// ---------------------------------------------------------------------------
+
+/** How many pages of 50 to scan for an event before giving up. */
+const OWN_EVENT_SCAN_PAGES = 10;
+
+/**
+ * The organizer's own summary row for an event (slug and status), by id.
+ * The analytics response carries neither, and ticket types are only
+ * readable through the slug (published) or the drafts list.
+ */
+export async function findOwnEvent(eventId: string) {
+  for (let page = 1; page <= OWN_EVENT_SCAN_PAGES; page++) {
+    const res = await fetchOrganizerEvents({ page, limit: ORGANIZER_EVENTS_MAX_LIMIT });
+    const hit = res.events.find((e) => e.id === eventId);
+    if (hit) return hit;
+    if (page >= res.pagination.totalPages) break;
+  }
+  return null;
+}
+
+/**
+ * An event's ticket types, with ids and `claimOnly` — the same sources
+ * mobile's `fetchOwnEventTiers` uses: the public event for a published
+ * event, the drafts list for a draft. Ended and cancelled events have no
+ * readable source, and their lists no longer matter: returns null.
+ *
+ * Uncached on purpose. The public read elsewhere revalidates every 30s,
+ * which would show a tier as still on sale right after its first upload.
+ */
+export async function fetchOwnTicketTypes(eventId: string): Promise<{
+  status: EventStatus;
+  ticketTypes: ApiTicketType[];
+} | null> {
+  const own = await findOwnEvent(eventId);
+  if (!own) return null;
+
+  if (own.status === "PUBLISHED") {
+    const event = await apiFetch<ApiEvent>(`/events/${encodeURIComponent(own.slug)}`, {
+      cache: "no-store",
+      timeout: 45_000,
+    });
+    return { status: own.status, ticketTypes: event.ticketTypes };
+  }
+  if (own.status === "DRAFT") {
+    const drafts = await serverFetch<(ApiEvent & { ticketTypes: ApiTicketType[] })[]>(
+      "/events/me/drafts",
+      { timeout: 45_000 },
+    );
+    const draft = drafts.find((d) => d.id === eventId);
+    return draft ? { status: own.status, ticketTypes: draft.ticketTypes } : null;
+  }
+  return { status: own.status, ticketTypes: [] };
+}
+
+/** `@Roles(ORGANIZER)` plus ownership — an ADMIN gets 403 here. */
+export function fetchClaimList(eventId: string, ticketTypeId: string) {
+  return serverFetch<ApiClaimList>(claimEntriesPath(eventId, ticketTypeId), {
     timeout: 45_000,
   });
 }

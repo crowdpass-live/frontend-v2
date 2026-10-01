@@ -11,6 +11,7 @@ export function EventTabs({ eventId }: { eventId: string }) {
   const tabs = [
     { href: base, label: "Overview" },
     { href: `${base}/attendees`, label: "Attendees" },
+    { href: `${base}/members`, label: "Member lists" },
   ];
   return (
     <nav aria-label="Event sections" className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
