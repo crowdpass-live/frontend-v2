@@ -1,9 +1,17 @@
 import "server-only";
 
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { ApiError, apiFetch } from "./api";
-import { SESSION_COOKIE, readClaims, secondsLeft } from "./session-token";
+import {
+  NEXT_HEADER,
+  SESSION_COOKIE,
+  expiredUrlFor,
+  readClaims,
+  secondsLeft,
+} from "./session-token";
+import type { ApiCheckinEvent } from "@/types/api";
 import { normalizeUser, type SessionUser } from "./normalize";
 
 /**
@@ -69,6 +77,45 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     throw err;
   }
 });
+
+/**
+ * The signed-in user, for a layout behind the proxy. A session the API
+ * rejects goes through the expired route (which clears the cookie) and back
+ * to sign-in; a network failure throws for the route's `error.tsx`, because
+ * "CrowdPass is unreachable" is not "you are signed out".
+ */
+export async function requireUser(): Promise<SessionUser> {
+  const user = await getCurrentUser();
+  if (user) return user;
+  const here = (await headers()).get(NEXT_HEADER) ?? "/";
+  redirect(expiredUrlFor(here));
+}
+
+/**
+ * `GET /organizer/my-checkin-events` — the doors this account may work.
+ *
+ * This list IS the `(door)` permission: check-in delegates are plain BUYERs
+ * holding an `EventTicketAdmin` grant, and there is no staff role. Never gate
+ * the door on `isOrganizer`.
+ *
+ * `null` means "could not ask" (signed out, cold start, outage), which the
+ * header treats as "don't show the link" and the door layout as an error —
+ * neither of them may read it as "no doors".
+ */
+export const getDoorEvents = cache(
+  async (): Promise<ApiCheckinEvent[] | null> => {
+    const session = await getSession();
+    if (!session) return null;
+    try {
+      return await apiFetch<ApiCheckinEvent[]>("/organizer/my-checkin-events", {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+        cache: "no-store",
+      });
+    } catch {
+      return null;
+    }
+  },
+);
 
 /**
  * Cookie attributes for a token with `maxAge` seconds to live.
