@@ -55,13 +55,27 @@ export interface SignInInput {
  * carrying the backend's status — 401 is bad credentials, 403 is an
  * unverified email (never tell that user their password is wrong).
  */
-export async function signIn(input: SignInInput): Promise<SessionUser> {
+export function signIn(input: SignInInput): Promise<SessionUser> {
+  return startSession("/api/session", input, "Could not sign in. Please try again.");
+}
+
+/**
+ * `POST /api/session/verify-email` — a correct code signs the new account
+ * in (the server sets the cookie). Rejects with the backend's 400 for a
+ * wrong or expired code.
+ */
+export function verifyEmail(email: string, code: string): Promise<SessionUser> {
+  return startSession("/api/session/verify-email", { email, code }, "Could not verify that code. Please try again.");
+}
+
+/** Both session-starting routes: same request, same error shape. */
+async function startSession(path: string, body: unknown, fallback: string): Promise<SessionUser> {
   let res: Response;
   try {
-    res = await fetch("/api/session", {
+    res = await fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     throw new ApiError(
@@ -71,18 +85,17 @@ export async function signIn(input: SignInInput): Promise<SessionUser> {
     );
   }
 
-  const body = (await res.json().catch(() => null)) as
+  const data = (await res.json().catch(() => null)) as
     | { user?: SessionUser; message?: string; errors?: string[] }
     | null;
 
-  if (!res.ok || !body?.user) {
-    const message =
-      body?.errors?.join(", ") || body?.message || "Could not sign in. Please try again.";
-    throw new ApiError(res.status, message, body);
+  if (!res.ok || !data?.user) {
+    const message = data?.errors?.join(", ") || data?.message || fallback;
+    throw new ApiError(res.status, message, data);
   }
 
   announce("signed-in");
-  return body.user;
+  return data.user;
 }
 
 /**

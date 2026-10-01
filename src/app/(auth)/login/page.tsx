@@ -12,13 +12,19 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; expired?: string }>;
+  searchParams: Promise<{ next?: string; expired?: string; email?: string }>;
 }) {
-  const { next, expired } = await searchParams;
+  const { next, expired, email } = await searchParams;
 
   // Already signed in: go where they were headed. If the cookie turns out to
   // be dead, the destination's 401 path clears it and lands back here.
   if (await getSession()) redirect(safeNext(next));
 
-  return <LoginForm next={next ? safeNext(next) : undefined} expired={expired === "1"} />;
+  return (
+    <LoginForm
+      next={next ? safeNext(next) : undefined}
+      expired={expired === "1"}
+      initialEmail={email?.trim().toLowerCase() ?? ""}
+    />
+  );
 }
