@@ -1,4 +1,4 @@
-import { NO_VALUE } from "@/lib/admin-format";
+import { NO_VALUE } from "@/lib/metric-format";
 import { cx } from "@/components/ui";
 
 /**
@@ -40,7 +40,9 @@ export function StatTile({
       <p
         title={title}
         className={cx(
-          "text-metric font-bold tracking-tight tabular-nums",
+          // The title size under sm: two tiles side by side on a 320px phone leave each
+          // ~100px, and the 30px metric size overruns that.
+          "text-title font-bold tracking-tight tabular-nums sm:text-metric",
           empty ? "text-text-faint" : "text-text",
         )}
       >

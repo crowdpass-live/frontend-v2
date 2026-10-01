@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   QueryClient,
   QueryClientProvider,
   type QueryClientConfig,
 } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
+import { subscribeSession } from "@/lib/session-client";
 
 const config: QueryClientConfig = {
   defaultOptions: {
@@ -36,5 +38,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // the server would share one cache, leaking one buyer's data into another's
   // render.
   const [client] = useState(() => new QueryClient(config));
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <SessionSync />
+      {children}
+    </QueryClientProvider>
+  );
+}
+
+/**
+ * Another tab signed in or out: re-render this one from the server. The
+ * cookie is httpOnly, so the broadcast is the only way to hear about it. On a
+ * protected page the refresh hits the proxy, which sends a signed-out tab to
+ * sign-in; on the storefront it just swaps the header's account slot.
+ */
+function SessionSync() {
+  const router = useRouter();
+  useEffect(() => subscribeSession(() => router.refresh()), [router]);
+  return null;
 }

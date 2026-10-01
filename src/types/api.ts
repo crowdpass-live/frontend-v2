@@ -616,3 +616,33 @@ export interface ApiBeneficiaryEarnings {
   totalEarned: number;
   events: { eventId: string; name: string; slug: string; amount: number; sales: number }[];
 }
+
+// ---------------------------------------------------------------------------
+// Organizer — member lists (claim-only ticket types)
+// ---------------------------------------------------------------------------
+
+/**
+ * `LOCKED` = three wrong names against this matric number — a real member
+ * who mistyped, or someone guessing. Only the organizer can tell which, and
+ * unlocks it.
+ */
+export type ClaimEntryStatus = "UNCLAIMED" | "CLAIMED" | "LOCKED";
+
+export interface ApiClaimEntry {
+  id: string;
+  /** Normalized server-side: trimmed, no inner spaces, uppercased. */
+  matNo: string;
+  fullName: string;
+  status: ClaimEntryStatus;
+  failedAttempts: number;
+}
+
+/**
+ * `GET|POST /organizer/events/:id/ticket-types/:ticketTypeId/claim-entries`.
+ * The POST (import) answers with the whole updated list.
+ */
+export interface ApiClaimList {
+  summary: { total: number; claimed: number; locked: number; unclaimed: number };
+  /** Sorted by full name. The whole list — this route does not paginate. */
+  entries: ApiClaimEntry[];
+}

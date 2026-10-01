@@ -1,7 +1,8 @@
 import type { Rate } from "@/types/admin";
 
 /**
- * Formatting for the admin surface.
+ * Formatting for the metric surfaces — the admin console and the organizer
+ * dashboard alike.
  *
  * The one rule that runs through all of it: **a rate is `null`, never `0`,
  * when there was nothing to divide.** `0%` is a measurement — it says the
@@ -37,7 +38,10 @@ export function ngnCompact(value: number | null | undefined): string {
   if (abs >= 1_000_000_000) return `₦${(value / 1_000_000_000).toFixed(1)}B`;
   if (abs >= 1_000_000) return `₦${(value / 1_000_000).toFixed(1)}M`;
   if (abs >= 10_000) return `₦${(value / 1_000).toFixed(1)}K`;
-  return ngn(value);
+  // Whole naira: "₦5,000", not "₦5,000.00" — the kobo is what made a
+  // half-width tile on a 320px phone overflow. The exact figure is the
+  // caller's `title`.
+  return `₦${Math.round(value).toLocaleString("en-US")}`;
 }
 
 /**
@@ -116,4 +120,21 @@ export function lastDays(days: number): { from: Date; to: Date } {
   const to = new Date();
   const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
   return { from, to };
+}
+
+/**
+ * A token amount from a Decimal string: `"12.5", "USDC"` -> `"12.50 USDC"`.
+ *
+ * Payouts are USDC, not naira — never run them through `ngn`. Two decimals
+ * for anything a person would recognise as money; below a cent, up to the
+ * token's six, so a dust payout does not display as "0.00".
+ */
+export function tokenAmount(value: string | number | null | undefined, currency: string): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  if (n === null || n === undefined || !Number.isFinite(n)) return NO_VALUE;
+  const digits = n !== 0 && Math.abs(n) < 0.01 ? 6 : 2;
+  return `${n.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: digits,
+  })} ${currency}`;
 }

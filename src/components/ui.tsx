@@ -14,9 +14,22 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 // generated stylesheet, not by the order of the class attribute — the
 // override silently loses and the button eats its neighbours. Every call site
 // states its own width.
+//
+// Height, padding and type size have the same trap, so they are NOT in the
+// base either: they come from `size`. A call site passing `h-10` against a
+// base `h-14` loses the same way and renders a 56px button.
 const BUTTON_BASE =
-  "inline-flex h-14 items-center justify-center gap-2 rounded-control " +
-  "px-6 text-body font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45";
+  "inline-flex items-center justify-center gap-2 rounded-control " +
+  "font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45";
+
+const BUTTON_SIZES = {
+  /** The default: primary actions, form submits. */
+  md: "h-14 px-6 text-body",
+  /** Toolbars and inline actions beside a compact input. */
+  sm: "h-10 px-4 text-label",
+} as const;
+
+type ButtonSize = keyof typeof BUTTON_SIZES;
 
 const BUTTON_VARIANTS = {
   // Black text on orange — the design's most easily-missed rule.
@@ -24,32 +37,36 @@ const BUTTON_VARIANTS = {
   secondary:
     "bg-surface text-text border border-border hover:bg-surface-strong",
   ghost: "bg-transparent text-text-dim hover:text-text",
+  // Irreversible actions only (remove, cancel). White on red, unlike orange.
+  danger: "bg-danger text-text hover:bg-danger/85 disabled:hover:bg-danger",
 } as const;
 
 type ButtonVariant = keyof typeof BUTTON_VARIANTS;
 
 export function Button({
   variant = "primary",
+  size = "md",
   className,
   ...props
-}: ComponentProps<"button"> & { variant?: ButtonVariant }) {
+}: ComponentProps<"button"> & { variant?: ButtonVariant; size?: ButtonSize }) {
   return (
     <button
       {...props}
-      className={cx(BUTTON_BASE, BUTTON_VARIANTS[variant], className)}
+      className={cx(BUTTON_BASE, BUTTON_SIZES[size], BUTTON_VARIANTS[variant], className)}
     />
   );
 }
 
 export function ButtonLink({
   variant = "primary",
+  size = "md",
   className,
   ...props
-}: ComponentProps<typeof Link> & { variant?: ButtonVariant }) {
+}: ComponentProps<typeof Link> & { variant?: ButtonVariant; size?: ButtonSize }) {
   return (
     <Link
       {...props}
-      className={cx(BUTTON_BASE, BUTTON_VARIANTS[variant], className)}
+      className={cx(BUTTON_BASE, BUTTON_SIZES[size], BUTTON_VARIANTS[variant], className)}
     />
   );
 }
