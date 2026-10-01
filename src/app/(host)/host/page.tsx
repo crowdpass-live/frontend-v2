@@ -96,9 +96,10 @@ export default async function HostDashboardPage({
         </p>
       </header>
 
-      <section aria-label="Summary" className="grid gap-3 sm:grid-cols-3">
+      <section aria-label="Summary" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatTile
           tone="accent"
+          className="col-span-2 sm:col-span-1"
           label="Ticket revenue"
           value={ngnCompact(summary.totalRevenue)}
           title={ngn(summary.totalRevenue)}
@@ -139,7 +140,7 @@ export default async function HostDashboardPage({
                     href={hrefFor(s)}
                     aria-current={active ? "page" : undefined}
                     className={cx(
-                      "block whitespace-nowrap rounded-full border px-4 py-2 text-label transition-colors",
+                      "flex min-h-10 items-center whitespace-nowrap rounded-full border px-4 text-label transition-colors",
                       active
                         ? "border-accent bg-accent-tint text-text"
                         : "border-border bg-surface text-text-dim hover:text-text",

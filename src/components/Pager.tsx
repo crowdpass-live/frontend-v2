@@ -44,7 +44,7 @@ function PagerLink({
 }) {
   if (disabled) {
     return (
-      <span aria-disabled className="px-4 py-2 text-label text-text-faint opacity-50">
+      <span aria-disabled className="inline-flex min-h-10 items-center px-4 text-label text-text-faint opacity-50">
         {children}
       </span>
     );
@@ -52,7 +52,7 @@ function PagerLink({
   return (
     <Link
       href={href}
-      className="rounded-full border border-border bg-surface px-4 py-2 text-label text-text-dim transition-colors hover:text-text"
+      className="inline-flex min-h-10 items-center rounded-full border border-border bg-surface px-4 text-label text-text-dim transition-colors hover:text-text"
     >
       {children}
     </Link>

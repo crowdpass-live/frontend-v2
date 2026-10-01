@@ -25,7 +25,7 @@ export function SiteHeader() {
         size="page"
         className="flex h-16 items-center justify-between gap-4"
       >
-        <Link href="/" aria-label="CrowdPass home" className="flex items-center">
+        <Link href="/" aria-label="CrowdPass home" className="flex h-10 min-w-10 items-center">
           {/* The mark alone on a phone: the full lockup at a legible height
            * eats a third of a 320px bar. */}
           <Logo variant="mark" height={22} priority className="sm:hidden" />
@@ -35,7 +35,7 @@ export function SiteHeader() {
         <nav className="flex items-center gap-2">
           <Link
             href="/"
-            className="whitespace-nowrap rounded-full px-3 py-2 text-label font-medium text-text-dim transition-colors hover:bg-surface hover:text-text sm:px-4"
+            className="inline-flex min-h-10 items-center whitespace-nowrap rounded-full px-3 text-label font-medium text-text-dim transition-colors hover:bg-surface hover:text-text sm:px-4"
           >
             Browse events
           </Link>

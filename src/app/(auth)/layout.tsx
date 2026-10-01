@@ -16,7 +16,7 @@ export default function AuthLayout({
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="px-5 pt-6 sm:px-8">
-        <Link href="/" aria-label="CrowdPass home" className="inline-flex">
+        <Link href="/" aria-label="CrowdPass home" className="inline-flex h-10 items-center">
           <Logo variant="full" height={24} priority />
         </Link>
       </header>

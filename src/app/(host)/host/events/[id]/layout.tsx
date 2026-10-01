@@ -49,7 +49,7 @@ export default async function HostEventLayout({
       <div className="flex flex-col gap-3">
         <Link
           href="/host"
-          className="inline-flex w-fit items-center gap-2 text-label text-text-dim hover:text-text"
+          className="-my-2.5 inline-flex min-h-10 w-fit items-center gap-2 text-label text-text-dim hover:text-text"
         >
           <ArrowLeftIcon width={16} height={16} /> Dashboard
         </Link>

@@ -54,7 +54,35 @@ export function TicketTypeTable({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+      {/* Phones: one block per ticket type. A 6-column table would only fit
+          by scrolling sideways, and half the figures would be off-screen. */}
+      <ul className="flex flex-col divide-y divide-border sm:hidden">
+        {breakdown.map((t) => (
+          <li key={t.name} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate text-body font-bold text-text">{t.name}</span>
+              <span className="shrink-0 text-label tabular-nums text-text-dim">
+                {t.price ? ngn(t.price) : "Free"}
+              </span>
+            </div>
+            <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 text-label">
+              <dt className="text-text-faint">Sold</dt>
+              <dd className="text-right tabular-nums text-text">
+                {count(t.sold)}
+                <span className="text-text-faint"> / {count(t.total)}</span>
+              </dd>
+              <dt className="text-text-faint">Revenue</dt>
+              <dd className="text-right tabular-nums text-text">{ngn(t.revenue)}</dd>
+              <dt className="text-text-faint">Checked in · on-chain</dt>
+              <dd className="text-right tabular-nums text-text-dim">{checkedIn(t.name)}</dd>
+              <dt className="text-text-faint">Claimable · on-chain</dt>
+              <dd className="text-right tabular-nums text-text-dim">{claimable(t.name)}</dd>
+            </dl>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[640px] border-collapse text-left text-label">
           <thead>
             <tr className="text-helper text-text-faint">

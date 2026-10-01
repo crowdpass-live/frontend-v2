@@ -16,7 +16,7 @@ export default function HostNotFound() {
         There&apos;s no event at this address. It may have been a mistyped or
         old link.
       </p>
-      <Link href="/host" className="text-body font-bold text-accent hover:text-accent-hi">
+      <Link href="/host" className="inline-flex min-h-10 items-center text-body font-bold text-accent hover:text-accent-hi">
         Back to your dashboard
       </Link>
     </Container>

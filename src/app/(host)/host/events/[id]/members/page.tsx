@@ -86,7 +86,7 @@ export default async function HostEventMembersPage({
                     href={`${base}?tier=${encodeURIComponent(t.id)}`}
                     aria-current={active ? "page" : undefined}
                     className={cx(
-                      "flex items-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-label transition-colors",
+                      "flex min-h-10 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-label transition-colors",
                       active
                         ? "border-accent bg-accent-tint text-text"
                         : "border-border bg-surface text-text-dim hover:text-text",

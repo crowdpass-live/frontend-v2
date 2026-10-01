@@ -38,7 +38,10 @@ export function ngnCompact(value: number | null | undefined): string {
   if (abs >= 1_000_000_000) return `₦${(value / 1_000_000_000).toFixed(1)}B`;
   if (abs >= 1_000_000) return `₦${(value / 1_000_000).toFixed(1)}M`;
   if (abs >= 10_000) return `₦${(value / 1_000).toFixed(1)}K`;
-  return ngn(value);
+  // Whole naira: "₦5,000", not "₦5,000.00" — the kobo is what made a
+  // half-width tile on a 320px phone overflow. The exact figure is the
+  // caller's `title`.
+  return `₦${Math.round(value).toLocaleString("en-US")}`;
 }
 
 /**
