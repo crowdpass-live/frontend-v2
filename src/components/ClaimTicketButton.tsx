@@ -63,7 +63,8 @@ export function ClaimTicketButton({
       <Button
         type="button"
         variant="secondary"
-        className="h-10 shrink-0 px-4 text-label"
+        size="sm"
+        className="shrink-0"
         disabled={disabled}
         onClick={() => setOpen(true)}
       >

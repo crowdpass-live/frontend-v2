@@ -125,6 +125,48 @@ function endSession() {
 }
 
 /**
+ * Download a raw, un-enveloped response (a `@SkipTransform` export such as
+ * the attendee CSV) through the authenticated forwarder, as a file save.
+ *
+ * Kept apart from `apiFetch` because that one parses and unwraps JSON, which
+ * would corrupt a CSV. Browser only. Shares the 401 path: a dead session
+ * goes to sign-in, not to a download of an error body.
+ */
+export async function apiDownload(path: string, fallbackName: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/backend${path}`, { headers: { Accept: "text/csv, */*" } });
+  } catch (err) {
+    throw new ApiError(0, "Could not reach CrowdPass. Please check your connection and try again.", err);
+  }
+  if (!res.ok) {
+    if (res.status === 401) endSession();
+    const body = await res.text().catch(() => "");
+    let parsed: unknown = body;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      // Not JSON; keep the text.
+    }
+    throw new ApiError(res.status, messageFrom(parsed, "The download failed. Please try again."), parsed);
+  }
+
+  // `attachment; filename="<slug>-attendees.csv"`
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const name = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? fallbackName;
+
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoked on the next tick: some browsers start the save asynchronously.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/**
  * Thin fetch wrapper that unwraps the backend's `{ success, data }` envelope
  * and turns failures into `ApiError`.
  *
