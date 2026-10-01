@@ -8,6 +8,7 @@ import { signIn } from "@/lib/session-client";
 import { Mascot } from "@/components/Mascot";
 import { TextField } from "@/components/TextField";
 import { LockIcon, PersonIcon } from "@/components/icons";
+import { AuthLink } from "@/components/auth/AuthPanel";
 import { Button, ErrorNote, Spinner } from "@/components/ui";
 
 /**
@@ -22,11 +23,10 @@ function describe(err: unknown): string {
     case 401:
       return "That email or phone number and password don't match an account.";
     case 403:
-      // Web has no code-entry screen yet (#21); the code is in their inbox.
-      return (
-        "Your email address isn't verified yet. Enter the 6-digit code we " +
-        "emailed you in the CrowdPass app, then sign in here."
-      );
+      // Normally never shown: a 403 sends them to /verify-email instead
+      // (below). This is the phone-number sign-in case, with no email to
+      // verify on that page.
+      return "This account's email isn't verified yet. Sign in with your email to verify it.";
     case 429:
       return "Too many attempts. Wait a minute, then try again.";
     default:
@@ -43,12 +43,14 @@ function identifier(value: string) {
 export function LoginForm({
   next,
   expired = false,
+  initialEmail = "",
 }: {
   next?: string;
   expired?: boolean;
+  initialEmail?: string;
 }) {
   const router = useRouter();
-  const [id, setId] = useState("");
+  const [id, setId] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -61,7 +63,18 @@ export function LoginForm({
       // Layouts rendered before sign-in (the header) re-read the session.
       router.refresh();
     },
-    onError: (err) => setError(describe(err)),
+    onError: (err) => {
+      // A 403 is an unverified email, never a wrong password: take them
+      // to enter the code (#21) rather than leaving them at an error.
+      const typed = id.trim().toLowerCase();
+      if (err instanceof ApiError && err.status === 403 && typed.includes("@")) {
+        const params = new URLSearchParams({ email: typed });
+        if (next) params.set("next", next);
+        router.push(`/verify-email?${params}`);
+        return;
+      }
+      setError(describe(err));
+    },
   });
 
   const busy = login.isPending || login.isSuccess;
@@ -132,10 +145,15 @@ export function LoginForm({
         </Button>
       </form>
 
-      <p className="text-helper text-text-faint">
-        New to CrowdPass, or forgot your password? Both live in the CrowdPass
-        app for now — they come to the web soon.
-      </p>
+      <div className="flex flex-col gap-1 text-label text-text-dim">
+        <AuthLink href={`/forgot-password${id.includes("@") ? `?email=${encodeURIComponent(id.trim().toLowerCase())}` : ""}`}>
+          Forgot password?
+        </AuthLink>
+        <p>
+          New to CrowdPass?{" "}
+          <AuthLink href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}>Create an account</AuthLink>
+        </p>
+      </div>
     </div>
   );
 }
