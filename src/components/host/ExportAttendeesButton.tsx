@@ -34,7 +34,8 @@ export function ExportAttendeesButton({ eventId }: { eventId: string }) {
         variant="secondary"
         onClick={run}
         disabled={busy}
-        className="h-11 w-full px-4 text-label sm:w-auto"
+        size="sm"
+        className="w-full sm:w-auto"
       >
         {busy ? <Spinner /> : null}
         Export all as CSV

@@ -88,9 +88,9 @@ export default async function HostEventAttendeesPage({
           defaultValue={search}
           placeholder="Search by name or email"
           maxLength={100}
-          className="h-11 min-w-0 flex-1 rounded-control border border-border bg-surface px-4 text-body text-text placeholder:text-text-faint"
+          className="h-10 min-w-0 flex-1 rounded-control border border-border bg-surface px-4 text-body text-text placeholder:text-text-faint"
         />
-        <Button type="submit" variant="secondary" className="h-11 shrink-0 px-4 text-label">
+        <Button type="submit" variant="secondary" size="sm" className="shrink-0">
           Search
         </Button>
       </form>
