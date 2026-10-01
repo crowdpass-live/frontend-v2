@@ -695,3 +695,12 @@ export interface ApiCheckInResult {
   checkedInAt: string;
   message: string;
 }
+
+/** `GET /organizer/countries` — where an organizer can register (auth-only). */
+export interface ApiOrganizerCountry {
+  code: string;
+  name: string;
+  /** ISO-4217 — every event this organizer creates is priced in it. */
+  currency: string;
+  kycIdTypes: KycIdType[];
+}
