@@ -1,14 +1,17 @@
-import { getDoorEvents, requireUser } from "@/lib/session";
+import { requireUser } from "@/lib/session";
+import { getDoors } from "@/lib/door";
 import { Mascot } from "@/components/Mascot";
 import { ButtonLink, Container } from "@/components/ui";
 
 /**
- * The `(door)` gate — the most-missed rule in the port.
+ * The `(door)` gate: anyone with at least one door to work.
  *
- * Check-in staff are ordinary BUYER accounts holding an `EventTicketAdmin`
- * grant; there is no staff role. So the door is open to whoever
- * `my-checkin-events` returns rows for, and is NEVER gated on `isOrganizer` —
- * that would lock out exactly the people it exists for.
+ * That is the backend's own rule (`CheckinAccessService.canScanEvent`): an
+ * event's owner may scan it, and so may anyone holding an active
+ * `EventTicketAdmin` grant. Delegates are ordinary BUYERs — there is no
+ * staff role — so this is never gated on `isOrganizer` alone; and an
+ * organizer needs no grant for their own events, so it is not gated on
+ * grants alone either (`getDoors` merges both).
  */
 export default async function DoorLayout({
   children,
@@ -16,7 +19,7 @@ export default async function DoorLayout({
   children: React.ReactNode;
 }) {
   await requireUser();
-  const doors = await getDoorEvents();
+  const doors = await getDoors();
   // Could not ask is not "no doors": let error.tsx offer a retry.
   if (doors === null) throw new Error("Could not load your check-in events.");
 
@@ -26,8 +29,8 @@ export default async function DoorLayout({
         <Mascot pose="no-tickets" height={120} />
         <h1 className="text-title font-bold text-text">No doors to work yet</h1>
         <p className="text-body text-text-dim">
-          When an organizer adds you to their check-in team, their event shows
-          up here and you can start letting guests in.
+          Your live events show up here, and so do events where an organizer
+          has added you to their check-in team.
         </p>
         <ButtonLink href="/" variant="secondary" className="w-full sm:w-auto">
           Browse events
