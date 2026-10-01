@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { serverFetch } from "./api-server";
+import { fetchEventBySlug } from "./crowdpass";
 import type {
   ApiAttendees,
   ApiBeneficiaryEarnings,
@@ -161,6 +162,36 @@ export function fetchPayouts(page = 1) {
   return serverFetch<ApiPayouts>(`/organizer/payouts?${params}`, {
     timeout: 45_000,
   });
+}
+
+/**
+ * The chain each event settles on, for explorer links on payouts.
+ *
+ * A payout carries `eventId` but not the chain, and events are only readable
+ * by slug. So: map id -> slug through the organizer's own events, then read
+ * each distinct event's public page. Payouts exist only for crypto events,
+ * so this is a handful of reads, and the public read is cached for 30s.
+ * An event that cannot be resolved maps to nothing — the hash is then shown
+ * without a link, never linked to a guessed chain.
+ *
+ * Simpler once `chain` is on the payout DTO (a one-line backend change).
+ */
+export async function chainsForEvents(eventIds: string[]): Promise<Map<string, string>> {
+  const wanted = new Set(eventIds);
+  const chains = new Map<string, string>();
+  if (!wanted.size) return chains;
+
+  const own = await settle(fetchOrganizerEvents({ limit: ORGANIZER_EVENTS_MAX_LIMIT }));
+  if (!own.ok) return chains;
+  const slugs = own.value.events.filter((e) => wanted.has(e.id));
+
+  await Promise.all(
+    slugs.map(async (e) => {
+      const detail = await settle(fetchEventBySlug(e.slug));
+      if (detail.ok && detail.value.chain) chains.set(e.id, detail.value.chain);
+    }),
+  );
+  return chains;
 }
 
 export function fetchBeneficiaryEarnings() {
