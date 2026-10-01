@@ -1,0 +1,46 @@
+name: CI
+
+# Red before review, not after deploy. Vercel builds on push too, but only
+# tells you once it has already failed to ship.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Never let CI touch the production API; nothing in the build should
+      # call it, but if a page ever prerenders against it, staging is safe.
+      NEXT_PUBLIC_API_URL: https://crowdpass-api-staging.onrender.com/api
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      # Catches what lint and tsc miss — a server component importing a
+      # client-only module (or `server-only` leaking into a client one)
+      # fails only here.
+      - name: Build
+        run: pnpm build

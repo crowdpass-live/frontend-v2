@@ -1,11 +1,9 @@
 import { ApiError, apiFetch } from "./api";
-import { authHeader } from "./admin-auth";
 import type {
   AdminDailyPoint,
   AdminMetrics,
   AdminOps,
   HealthReport,
-  LoginResult,
 } from "@/types/admin";
 
 /** `to` is EXCLUSIVE. Both optional; the API defaults to the last 30 days. */
@@ -23,7 +21,9 @@ function rangeQuery(range: MetricsRange): string {
 }
 
 /**
- * Admin reads are never cached and always bearer-authed.
+ * Admin reads are never cached and always authenticated — through the
+ * `/api/backend` forwarder, which attaches the session cookie's token, so a
+ * 401 here lands on the one expired-session path like everything else.
  *
  * `no-store` rather than a short revalidate: these are operational numbers
  * someone is watching during an incident, and a cached ops snapshot is worse
@@ -32,7 +32,7 @@ function rangeQuery(range: MetricsRange): string {
  */
 function adminFetch<T>(path: string): Promise<T> {
   return apiFetch<T>(path, {
-    headers: authHeader(),
+    auth: true,
     cache: "no-store",
     timeout: 45_000,
   });
@@ -95,13 +95,4 @@ export async function fetchHealth(): Promise<HealthResult> {
     }
     throw err;
   }
-}
-
-/** `POST /auth/login` — public. Returns the token and the user, incl. `role`. */
-export function login(email: string, password: string) {
-  return apiFetch<LoginResult>("/auth/login", {
-    method: "POST",
-    body: { email, password },
-    timeout: 45_000,
-  });
 }

@@ -250,3 +250,369 @@ export interface ApiTicket {
     organizer: { firstName: string | null; lastName: string | null } | null;
   };
 }
+
+// ---------------------------------------------------------------------------
+// Shared
+// ---------------------------------------------------------------------------
+
+export type EventStatus = "DRAFT" | "PUBLISHED" | "CANCELLED" | "COMPLETED";
+
+/** Every paginated organizer list uses this key and shape. */
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+// ---------------------------------------------------------------------------
+// Auth and the signed-in user
+// ---------------------------------------------------------------------------
+
+export type UserRole = "BUYER" | "ORGANIZER" | "ADMIN";
+
+/** Account completeness, NOT a permission level. LITE = phone-only. */
+export type UserStatus = "LITE" | "FULL";
+
+export type KycStatus = "PENDING" | "VERIFIED" | "REJECTED";
+export type KycTier = "NONE" | "BASIC" | "ENHANCED";
+export type KycIdType = "BVN" | "NIN";
+
+/**
+ * The minimal user `POST /api/session` hands back to the browser — enough to
+ * route someone after sign-in, nothing more. Full detail is `ApiUser`.
+ */
+export interface AuthUser {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  role: UserRole;
+}
+
+/** `POST /auth/login`. `user` is the bare row (no profile, no wallets). */
+export interface LoginResult {
+  accessToken: string;
+  user: AuthUser;
+}
+
+/**
+ * `organizerProfile` as `GET /auth/me` returns it: `id`, `userId` and
+ * `kycIdHash` are stripped, and `accountNumber` is MASKED — never send it
+ * back as if it were the real number.
+ */
+export interface ApiOrganizerProfile {
+  country: string;
+  bankName: string | null;
+  bankCode: string | null;
+  accountNumber: string | null;
+  accountName: string | null;
+  bankVerified: boolean;
+  kycTier: KycTier;
+  kycStatus: KycStatus;
+  kycProvider: string | null;
+  kycIdType: KycIdType | null;
+  /** Last 4 digits only — "NIN ending 1234". */
+  kycIdLast4: string | null;
+  kycVerifiedAt: string | null;
+  /** Why the last attempt failed, so the UI can say what to fix. */
+  kycRejectionReason: string | null;
+  businessName: string | null;
+  businessAddress: string | null;
+  /** A `DEV_` prefix is a placeholder, not a real payment lane (#39). */
+  paystackSubaccountCode: string | null;
+  paystackSubaccountId: string | null;
+  monnifySubAccountCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** One custodial Circle wallet. `address` is null while provisioning. */
+export interface ApiWallet {
+  id: string;
+  address: string | null;
+  chain: string;
+  walletType: string;
+  isPrimary: boolean;
+  creationStatus: string | null;
+  creationError: string | null;
+  createdAt: string;
+}
+
+/**
+ * `GET /auth/me` — the only place `organizerProfile` and `wallets` appear.
+ * Read through `normalizeUser()` rather than directly.
+ */
+export interface ApiUser {
+  id: string;
+  /** Nullable: a WhatsApp-first account may have none. */
+  email: string | null;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  role: UserRole;
+  status: UserStatus;
+  emailVerifiedAt: string | null;
+  phoneVerifiedAt: string | null;
+  createdAt: string;
+  organizerProfile: ApiOrganizerProfile | null;
+  wallets: ApiWallet[];
+}
+
+// ---------------------------------------------------------------------------
+// Organizer — dashboard and analytics (`/organizer/events…`)
+// ---------------------------------------------------------------------------
+
+/** `GET /organizer/events` — one call carries the summary and the page. */
+export interface ApiOrganizerEvents {
+  /** Across ALL the organizer's events, not just this page. */
+  summary: {
+    totalEvents: number;
+    publishedEvents: number;
+    /** Naira: sold count × CURRENT ticket price, not settled money. */
+    totalRevenue: number;
+    totalTicketsSold: number;
+  };
+  events: ApiOrganizerEvent[];
+  pagination: Pagination;
+}
+
+export interface ApiOrganizerEvent {
+  id: string;
+  name: string;
+  slug: string;
+  coverImage: string | null;
+  startTime: string;
+  endTime: string | null;
+  status: EventStatus;
+  category: EventCategory;
+  createdAt: string;
+  stats: {
+    totalTickets: number;
+    /** CONFIRMED + USED. */
+    ticketsSold: number;
+    ticketsAvailable: number;
+    totalRevenue: number;
+    /** USED. */
+    checkedIn: number;
+    ticketTypes: { name: string; sold: number; total: number; revenue: number }[];
+  };
+}
+
+/**
+ * `GET /organizer/events/:id/analytics`.
+ *
+ * NOTE the backend reports `checkInRate` and `averageTicketPrice` as `0`, not
+ * `null`, when nothing sold. Check `totalTicketsSold` before rendering either
+ * as a figure — `0%` and "nothing to measure" are different statements.
+ */
+export interface ApiEventAnalytics {
+  event: { id: string; name: string; status: EventStatus; startTime: string };
+  overview: {
+    /** Gross, from SUCCESS transactions. */
+    totalRevenue: number;
+    totalTicketsSold: number;
+    totalTicketsAvailable: number;
+    totalCheckedIn: number;
+    /** Whole percent, 0–100. */
+    checkInRate: number;
+    averageTicketPrice: number;
+  };
+  /** `net + platformFee + beneficiaryTotal = gross`; `net` is after gateway fee. */
+  earnings: {
+    gross: number;
+    net: number;
+    platformFee: number;
+    gatewayFee: number;
+    beneficiaryTotal: number;
+    beneficiaries: { userId: string; name: string; amount: number }[];
+    /**
+     * Fewer than `transactions` means some rows predate the split ledger,
+     * and `net` is overstated by their gateway fee. Say so when it happens.
+     */
+    ledgerBackedTransactions: number;
+    transactions: number;
+  };
+  /** Gap-filled from the first sale to today; empty when nothing sold. */
+  dailySales: { date: string; ticketsSold: number; revenue: number }[];
+  ticketTypeBreakdown: {
+    name: string;
+    price: number;
+    sold: number;
+    total: number;
+    revenue: number;
+    /** Whole percent. */
+    percentSold: number;
+  }[];
+  revenueByProvider: { provider: PaymentProvider; amount: number; count: number }[];
+  /** `channel` is `"unknown"` for transactions settled without one. */
+  revenueByChannel: { channel: string; amount: number; count: number }[];
+}
+
+/**
+ * On-chain reads fail per ticket type, not per call: one RPC hiccup yields
+ * `{ error: "unavailable" }` on that row while the others carry figures.
+ */
+type OnchainRow<T> = {
+  ticketTypeId: string;
+  name: string;
+  /** BigInt, serialized as a string. */
+  onChainTicketId: string;
+} & (T | { error: "unavailable" });
+
+/** `GET /organizer/events/:id/onchain/balance` — claimable escrow. */
+export interface ApiOnchainBalance {
+  chain: string;
+  feeType: string;
+  tickets: OnchainRow<{ balanceUsdc: string; balanceRaw: string }>[];
+}
+
+/** `GET /organizer/events/:id/onchain/checkins`. */
+export interface ApiOnchainCheckins {
+  chain: string;
+  total: number;
+  tickets: OnchainRow<{ checkedIn: number }>[];
+}
+
+// ---------------------------------------------------------------------------
+// Organizer — people. Three privacy tiers for the same ticket; keep them apart.
+// ---------------------------------------------------------------------------
+
+/**
+ * `GET /organizer/events/:id/attendees` — the SENSITIVE tier: carries buyer
+ * email and phone. Organizer surfaces only; never render this on a door.
+ */
+export interface ApiAttendees {
+  attendees: {
+    ticketReference: string;
+    buyerName: string | null;
+    buyerEmail: string | null;
+    buyerPhone: string | null;
+    ticketType: string;
+    status: TicketStatus;
+    checkedInAt: string | null;
+    purchasedAt: string;
+  }[];
+  /** Event-wide, independent of the list's filters. */
+  summary: {
+    totalAttendees: number;
+    confirmed: number;
+    checkedIn: number;
+    cancelled: number;
+  };
+  pagination: Pagination;
+}
+
+/**
+ * `GET /organizer/events/:id/checkin-roster` — the DOOR tier: names only, no
+ * contact details, by design. Search matches the buyer's name only.
+ */
+export interface ApiCheckinRoster {
+  attendees: {
+    ticketReference: string;
+    buyerName: string | null;
+    ticketType: string;
+    status: TicketStatus;
+    checkedInAt: string | null;
+  }[];
+  summary: { expected: number; checkedIn: number };
+  pagination: Pagination;
+}
+
+/** `GET /organizer/users/lookup` — `email` is null for WhatsApp-only users. */
+export interface ApiUserLookup {
+  id: string;
+  name: string;
+  email: string | null;
+}
+
+/** `GET /organizer/events/:id/ticket-admins` — one row per active delegate. */
+export interface ApiTicketAdmin {
+  userId: string;
+  name: string;
+  email: string | null;
+  address: string;
+  status: "ACTIVE" | "REVOKED";
+  grantedAt: string;
+}
+
+/**
+ * `GET /organizer/my-checkin-events` — the doors this account may work.
+ * This list IS the `(door)` permission check: delegates are plain BUYERs.
+ */
+export interface ApiCheckinEvent {
+  eventId: string;
+  name: string;
+  slug: string;
+  venue: string | null;
+  location: string | null;
+  startTime: string;
+  endTime: string | null;
+  coverImage: string | null;
+  status: EventStatus;
+  organizerName: string;
+  grantedAt: string;
+  /** True only between start and end; does not say early from late. */
+  checkInOpen: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Organizer — money
+// ---------------------------------------------------------------------------
+
+export type PayoutStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+
+/** Amounts are Decimal, serialized as strings. Currency is on the row. */
+export interface ApiPayout {
+  id: string;
+  eventId: string;
+  eventName: string;
+  amount: string;
+  currency: string;
+  provider: PaymentProvider;
+  status: PayoutStatus;
+  /** The on-chain tx hash for a CRYPTO payout. */
+  providerReference: string | null;
+  scheduledDate: string;
+  processedAt: string | null;
+  createdAt: string;
+}
+
+/** `GET /organizer/payouts`. */
+export interface ApiPayouts {
+  payouts: ApiPayout[];
+  summary: { totalPaid: string; pendingAmount: string; totalPayouts: number };
+  pagination: Pagination;
+}
+
+/**
+ * `GET /organizer/events/:id/beneficiaries`.
+ *
+ * `shareBps` is basis points of the ORGANIZER'S CUT, not of gross. Show
+ * `sharePercent` (what was set) beside `grossPercent` (what reaches them).
+ */
+export interface ApiBeneficiaries {
+  beneficiaries: {
+    id: string;
+    userId: string;
+    name: string;
+    email: string | null;
+    shareBps: number;
+    sharePercent: number;
+    grossPercent: number;
+    createdAt: string;
+  }[];
+  allocatedBps: number;
+  remainingBps: number;
+  organizerSharePercent: number;
+  maxBeneficiaries: number;
+}
+
+/**
+ * `GET /organizer/beneficiary-earnings` — what the viewer earned on OTHER
+ * people's events. Settled money only; deliberately no gross figures.
+ */
+export interface ApiBeneficiaryEarnings {
+  totalEarned: number;
+  events: { eventId: string; name: string; slug: string; amount: number; sales: number }[];
+}

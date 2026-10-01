@@ -4,39 +4,52 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
-import { login } from "@/lib/admin";
-import { writeSession } from "@/lib/admin-auth";
+import { signIn } from "@/lib/session-client";
+import { safeNext } from "@/lib/session-token";
 import { Logo } from "@/components/Logo";
 import { Button, Card, ErrorNote, Spinner, cx } from "@/components/ui";
 
 /**
  * Admin sign-in.
  *
- * Uses the same `POST /auth/login` as everyone else — there is no separate
- * admin credential — so a BUYER or ORGANIZER can authenticate successfully
- * here and still be refused every panel. The role is checked immediately on
- * the response rather than after redirecting, so the wrong account gets a
- * clear sentence instead of a dashboard full of 403s.
+ * The shared sign-in (`POST /api/session`) — there is no separate admin
+ * credential or session — so a BUYER or ORGANIZER can authenticate
+ * successfully here and still be refused every panel. The role is checked
+ * immediately on the response rather than after redirecting, so the wrong
+ * account gets a clear sentence instead of a dashboard full of 403s. They
+ * are signed in to the rest of the app regardless; that is the point of one
+ * session.
  */
-export function AdminLogin() {
+export function AdminLogin({
+  next,
+  expired = false,
+}: {
+  next?: string;
+  expired?: boolean;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const signIn = useMutation({
-    mutationFn: () => login(email.trim(), password),
-    onSuccess: (result) => {
-      if (result.user.role !== "ADMIN") {
+  const target = safeNext(next);
+  const destination = target.startsWith("/admin") ? target : "/admin";
+
+  const login = useMutation({
+    mutationFn: () => signIn({ email: email.trim(), password }),
+    onSuccess: (user) => {
+      if (user.role !== "ADMIN") {
         setError(
-          `That account is a ${result.user.role}. The admin pages expose ` +
+          `That account is a ${user.role}. The admin pages expose ` +
             `revenue across every organizer, so the API only serves them to ` +
             `an ADMIN account.`,
         );
         return;
       }
-      writeSession({ accessToken: result.accessToken, user: result.user });
-      router.replace("/admin");
+      // The admin layout read the session before sign-in; refresh so it
+      // re-reads it rather than holding the signed-out `user`.
+      router.replace(destination);
+      router.refresh();
     },
     onError: (err) => {
       setError(
@@ -47,7 +60,7 @@ export function AdminLogin() {
     },
   });
 
-  const busy = signIn.isPending;
+  const busy = login.isPending;
 
   return (
     <div className="grid min-h-dvh place-items-center px-6 py-16">
@@ -68,7 +81,7 @@ export function AdminLogin() {
             onSubmit={(e) => {
               e.preventDefault();
               setError(null);
-              signIn.mutate();
+              login.mutate();
             }}
           >
             <Field
@@ -90,7 +103,13 @@ export function AdminLogin() {
               required
             />
 
-            {error ? <ErrorNote>{error}</ErrorNote> : null}
+            {error ? (
+              <ErrorNote>{error}</ErrorNote>
+            ) : expired ? (
+              <p role="status" className="text-label text-text-dim">
+                Your session ended. Sign in again to continue.
+              </p>
+            ) : null}
 
             <Button
               type="submit"
