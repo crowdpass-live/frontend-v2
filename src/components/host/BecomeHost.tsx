@@ -78,29 +78,38 @@ export function BecomeHost({
         <h1 className="text-title font-bold text-text">Host mode is on for {done.name}.</h1>
         <p className="text-body text-text-dim">
           You can create and publish crypto-paid events right away. To take card
-          and bank transfer too, verify your identity and connect a bank account —
-          you can do both later.
+          and bank transfer too, verify your identity and connect a bank account.
         </p>
         {placeholderName ? (
           <p className="rounded-control border border-warn/40 bg-warn/10 px-4 py-3 text-left text-label text-warn">
-            Before you verify: your profile name is still the one we made from your
-            email. Verification checks it against your NIN or BVN, so{" "}
-            <Link href="/account" className="font-bold underline underline-offset-2">set your real name</Link> first.
+            Verification checks your profile name against your NIN or BVN, and
+            yours is still the one we made from your email. Set your real name
+            first — it takes a few seconds.
           </p>
         ) : null}
-        <Button
-          type="button"
-          className="w-full sm:w-auto"
-          disabled={opening}
-          onClick={() => {
-            setOpening(true);
-            // The host layout re-reads the role and renders the dashboard.
-            router.refresh();
-          }}
-        >
-          {opening ? <Spinner /> : null}
-          Go to your dashboard
-        </Button>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          {/* Verify while they're here; a new host who leaves rarely comes back to it. */}
+          <ButtonLink
+            href={placeholderName ? "/account?next=/host/verify" : "/host/verify"}
+            className="w-full sm:w-auto"
+          >
+            {placeholderName ? "Set your name, then verify" : "Verify your identity"}
+          </ButtonLink>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            disabled={opening}
+            onClick={() => {
+              setOpening(true);
+              // The host layout re-reads the role and renders the dashboard.
+              router.refresh();
+            }}
+          >
+            {opening ? <Spinner /> : null}
+            Later — go to dashboard
+          </Button>
+        </div>
       </Container>
     );
   }

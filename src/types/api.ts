@@ -327,6 +327,84 @@ export interface ApiOrganizerProfile {
   updatedAt: string;
 }
 
+/**
+ * One row of `KycVerification`. `PENDING` is an SDK session (liveness, or the
+ * app's consent flow) whose webhook has not landed; `PROVIDER_ERROR` is an
+ * outage. Neither one counts against the daily attempts.
+ */
+export type KycOutcome =
+  | "PENDING"
+  | "VERIFIED"
+  | "NAME_MISMATCH"
+  | "NOT_FOUND"
+  | "LIVENESS_FAILED"
+  | "DUPLICATE_IDENTITY"
+  | "PROVIDER_ERROR";
+
+/** `GET /organizer/kyc` — state plus what the organizer can do next. */
+export interface ApiKycStatus {
+  status: KycStatus;
+  tier: KycTier;
+  country: string;
+  idType: KycIdType | null;
+  idLast4: string | null;
+  verifiedAt: string | null;
+  rejectionReason: string | null;
+  /** From the country registry, so the form never hardcodes them. */
+  availableIdTypes: KycIdType[];
+  /** Rolling 24h, out of 5. */
+  attemptsRemaining: number;
+  /** The names the ID is matched against. Server-owned, never typed here. */
+  applicant: { firstName: string; lastName: string };
+  /** A minted SDK session still waiting on its webhook — usually the app's. */
+  pendingVerification: {
+    reference: string | null;
+    startedAt: string;
+    expiresAt: string | null;
+    product: string;
+  } | null;
+  history: {
+    id: string;
+    idType: KycIdType | null;
+    idLast4: string | null;
+    outcome: KycOutcome;
+    failureReason: string | null;
+    createdAt: string;
+  }[];
+}
+
+/**
+ * `POST /organizer/kyc/verify`. Every branch is a 200 — a failed match is an
+ * answer, not an error. 409 (already verified), 403 (REJECTED, or not an
+ * organizer) and 429 (attempts or the per-IP throttle) arrive as errors.
+ */
+export type ApiKycVerifyResult =
+  | {
+      outcome: "VERIFIED";
+      status: "VERIFIED";
+      tier: KycTier;
+      idType: KycIdType;
+      idLast4: string;
+      message: string;
+    }
+  | {
+      /** Not a verdict: nothing was checked and no attempt was spent. */
+      outcome: "CONSENT_REQUIRED";
+      status: "PENDING";
+      consentUrl: string;
+      idType: KycIdType;
+      idLast4: string;
+      message: string;
+    }
+  | {
+      outcome: "NAME_MISMATCH" | "NOT_FOUND" | "LIVENESS_FAILED";
+      /** REJECTED when this attempt used up the last one. */
+      status: "PENDING" | "REJECTED";
+      reason: string;
+      attemptsRemaining: number;
+      message: string;
+    };
+
 /** One custodial Circle wallet. `address` is null while provisioning. */
 export interface ApiWallet {
   id: string;

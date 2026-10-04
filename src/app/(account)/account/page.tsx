@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/session";
+import { safeNext } from "@/lib/session-token";
 import { ProfileForm } from "@/components/account/ProfileForm";
 import { Container } from "@/components/ui";
 
@@ -7,10 +8,18 @@ export const metadata: Metadata = { title: "Account" };
 
 /**
  * The attendee account page. For now: your details (#27). My tickets (#25)
- * and the wallet card (#26) join it in Phase 2.
+ * and the wallet card (#26) join it in Phase 2. `?next=` returns a host to
+ * identity verification once their name is fixed.
  */
-export default async function AccountPage() {
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const user = await requireUser();
+  // Only ever a path on this site; anything else is dropped, not followed.
+  const raw = (await searchParams).next;
+  const next = raw && safeNext(raw) !== "/" ? safeNext(raw) : undefined;
   return (
     <Container className="flex flex-col gap-6 py-10">
       <div>
@@ -20,6 +29,7 @@ export default async function AccountPage() {
       <section aria-labelledby="profile-heading" className="flex flex-col gap-4 rounded-card border border-border bg-surface p-5">
         <h2 id="profile-heading" className="text-section font-bold text-text">Your details</h2>
         <ProfileForm
+          next={next}
           user={{
             firstName: user.firstName,
             lastName: user.lastName,
