@@ -374,6 +374,22 @@ export interface ApiKycStatus {
 }
 
 /**
+ * `POST /organizer/kyc/session` (201). An empty body mints liveness
+ * (`liveness_nin`); `{ idType, idNumber }` mints the consent flow. The token
+ * is single-use; `reference` is echoed to the SDK as `customerReference`.
+ * A duplicate `sessionToken` field also comes back — ignore it.
+ */
+export interface ApiKycSession {
+  sdkSessionToken: string;
+  reference: string;
+  sessionId: string;
+  expiresAt: string | null;
+  productCode: string;
+  flow: "LIVENESS" | "CONSENT";
+  status: "PENDING";
+}
+
+/**
  * `POST /organizer/kyc/verify`. Every branch is a 200 — a failed match is an
  * answer, not an error. 409 (already verified), 403 (REJECTED, or not an
  * organizer) and 429 (attempts or the per-IP throttle) arrive as errors.

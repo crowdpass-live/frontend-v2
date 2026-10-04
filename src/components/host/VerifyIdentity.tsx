@@ -4,12 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, apiFetch } from "@/lib/api";
+import {
+  CAMERA_PROBLEM_COPY,
+  WEB_LIVENESS_ENABLED,
+  checkCamera,
+  launchLiveness,
+  type CameraProblem,
+} from "@/lib/qoreid";
 import { Celebration } from "@/components/Celebration";
 import { Mascot } from "@/components/Mascot";
 import { TextField } from "@/components/TextField";
-import { CheckIcon, ExternalLinkIcon, LockIcon, PersonIcon } from "@/components/icons";
+import { CameraIcon, CheckIcon, ExternalLinkIcon, LockIcon, PersonIcon } from "@/components/icons";
 import { Button, ButtonLink, Container, ErrorNote, Spinner, cx } from "@/components/ui";
-import type { ApiKycStatus, ApiKycVerifyResult, KycIdType } from "@/types/api";
+import type { ApiKycStatus, ApiKycSession, ApiKycVerifyResult, KycIdType } from "@/types/api";
 
 const ID_HELP: Record<KycIdType, string> = {
   BVN: "Dial *565*0# from the number registered with your bank to see it.",
@@ -24,18 +31,29 @@ const OUTCOME_HELP: Record<string, string> = {
   NAME_MISMATCH:
     "The name on this ID doesn't match your profile name. Change your name to match the ID exactly, then try again.",
   NOT_FOUND: "We couldn't find that number. Check the digits and try again.",
-  LIVENESS_FAILED: "The selfie check didn't pass. Try again in good light.",
+  LIVENESS_FAILED:
+    "Try again facing a light, with your whole face in the frame. Your name is fine — don't change it.",
+  DUPLICATE_IDENTITY:
+    "This ID is already verified on another CrowdPass account. Contact support if that account is yours.",
 };
 
+/** History outcomes that mean a check resolved and did not pass. */
+const RESOLVED_FAILURES = ["NAME_MISMATCH", "NOT_FOUND", "LIVENESS_FAILED", "DUPLICATE_IDENTITY"];
+
 /**
- * A session minted elsewhere (the app's liveness flow) is resolved by webhook.
- * Poll our own API while it is fresh — 3s ticks, 90s in all, as on mobile —
- * and then stop asking: past that it is "taking longer", not "broken".
+ * An SDK session (this page's selfie check, or one from the app) is resolved
+ * by webhook. Poll our own API while it is fresh — 3s ticks, 90s in all, as
+ * on mobile — then stop asking: past that it is "taking longer", not broken.
  */
 const POLL_MS = 3_000;
 const POLL_WINDOW_MS = 90_000;
 
 type Failure = { outcome: string; reason: string; attemptsRemaining: number };
+
+/** What is being waited on: a capture made here, or one found on load. */
+type Watch = { origin: "here" | "earlier"; deadline: number };
+
+type Method = "selfie" | "number";
 
 /** The backend's reasons come without a full stop; we follow them with more. */
 function sentence(text: string): string {
@@ -44,10 +62,16 @@ function sentence(text: string): string {
 }
 
 /**
- * Organizer identity verification (#33). Ports the browser half of
- * `VerifyIdentityScreen.js` — BVN or NIN on `POST /organizer/kyc/verify`,
- * with the NIBSS iGree consent round trip. Liveness through the QoreID Web
- * SDK is the follow-up to the #34 spike.
+ * Organizer identity verification. Ports `VerifyIdentityScreen.js`, both
+ * halves, as mobile has them:
+ *
+ * - **Selfie + NIN** (#34, behind `NEXT_PUBLIC_QOREID_WEB_LIVENESS`):
+ *   `POST /organizer/kyc/session` with an EMPTY body mints a `liveness_nin`
+ *   session, the QoreID Web SDK captures the selfie and NIN in its own UI,
+ *   and the verdict arrives by webhook — so this page polls
+ *   `GET /organizer/kyc`. The SDK's "submitted" event decides nothing.
+ * - **ID number** (#33): BVN or NIN on `POST /organizer/kyc/verify`, with
+ *   the NIBSS iGree consent round trip.
  *
  * `/verify` answers synchronously. The one detour is `CONSENT_REQUIRED`:
  * NIBSS want the BVN holder to approve the lookup on their own page, which
@@ -97,37 +121,48 @@ export function VerifyIdentity({
     }
   }, []);
 
-  // --- A check already in flight (started in the app) -----------------------
+  // --- Waiting on a webhook ----------------------------------------------------
   const pending = kyc.status === "PENDING" ? kyc.pendingVerification : null;
-  // Resumes the session's own 90s rather than starting a fresh one, so a
-  // stranded session from yesterday doesn't spin a spinner on every visit.
-  const [watching, setWatching] = useState(() => {
+  // A session found on load resumes its own 90s rather than starting a fresh
+  // one, so a stranded session from yesterday doesn't spin on every visit.
+  const [watch, setWatch] = useState<Watch | null>(() => {
     const p = initial.status === "PENDING" ? initial.pendingVerification : null;
-    return !!p && Date.now() - new Date(p.startedAt).getTime() < POLL_WINDOW_MS;
+    const deadline = p ? new Date(p.startedAt).getTime() + POLL_WINDOW_MS : 0;
+    return p && deadline > Date.now() ? { origin: "earlier", deadline } : null;
   });
-  const deadline = useRef(0);
+  /** A capture made here outlived the poll window. */
+  const [slow, setSlow] = useState(false);
 
   useEffect(() => {
-    if (!watching) return;
-    if (!deadline.current) {
-      const started = new Date(initial.pendingVerification?.startedAt ?? 0).getTime();
-      deadline.current = Math.max(started + POLL_WINDOW_MS, Date.now() + POLL_MS);
-    }
+    if (!watch) return;
     let timer: ReturnType<typeof setTimeout>;
     let alive = true;
     const tick = async () => {
       const next = await reload();
       if (!alive) return;
       if (next && (!next.pendingVerification || next.status !== "PENDING")) {
-        setWatching(false);
+        setWatch(null);
         if (next.status === "VERIFIED") {
           setJustVerified(true);
           router.refresh();
+          return;
+        }
+        // Resolved and didn't pass, with attempts still left: a retry, not
+        // a rejection. Only said for a check made here — an old one from
+        // the app is not news.
+        const latest = next.history[0];
+        if (watch.origin === "here" && latest && RESOLVED_FAILURES.includes(latest.outcome)) {
+          setFailure({
+            outcome: latest.outcome,
+            reason: latest.failureReason ?? "Verification did not pass",
+            attemptsRemaining: next.attemptsRemaining,
+          });
         }
         return;
       }
-      if (Date.now() >= deadline.current) {
-        setWatching(false);
+      if (Date.now() >= watch.deadline) {
+        setWatch(null);
+        if (watch.origin === "here") setSlow(true);
         return;
       }
       timer = setTimeout(tick, POLL_MS);
@@ -137,7 +172,101 @@ export function VerifyIdentity({
       alive = false;
       clearTimeout(timer);
     };
-  }, [watching, reload, router, initial.pendingVerification?.startedAt]);
+  }, [watch, reload, router]);
+
+  // --- Selfie + NIN (QoreID Web SDK) -------------------------------------------
+  const [method, setMethod] = useState<Method>(WEB_LIVENESS_ENABLED ? "selfie" : "number");
+  const [capture, setCapture] = useState<"idle" | "camera" | "starting" | "open">("idle");
+  const [cameraProblem, setCameraProblem] = useState<CameraProblem | null>(null);
+  const [captureNote, setCaptureNote] = useState<string | null>(null);
+  const detachSdk = useRef<(() => void) | null>(null);
+  /**
+   * A session closed or errored here stays PENDING on the server (its
+   * webhook never comes). It isn't "a check you started earlier" — the
+   * note already said what happened — so the banner skips it.
+   */
+  const [abandoned, setAbandoned] = useState<string | null>(null);
+  useEffect(() => () => detachSdk.current?.(), []);
+
+  // Results arrive after a background poll or an SDK event, often while the
+  // host is scrolled to the top on a phone: bring them into view.
+  const outcomeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (failure || captureNote || cameraProblem) {
+      outcomeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [failure, captureNote, cameraProblem]);
+
+  async function startSelfie() {
+    setError(null);
+    setFailure(null);
+    setCaptureNote(null);
+    setCameraProblem(null);
+    setSlow(false);
+
+    // Camera first, session second: a token is single-use and minting is
+    // capped, so a refusal must cost nothing.
+    setCapture("camera");
+    const problem = await checkCamera();
+    if (problem) {
+      setCameraProblem(problem);
+      setCapture("idle");
+      return;
+    }
+
+    setCapture("starting");
+    let session: ApiKycSession;
+    try {
+      // EMPTY body selects liveness. Nothing else — forbidNonWhitelisted.
+      session = await apiFetch<ApiKycSession>("/organizer/kyc/session", {
+        method: "POST",
+        auth: true,
+        body: {},
+        timeout: 60_000,
+      });
+    } catch (err) {
+      setCapture("idle");
+      setError(
+        err instanceof ApiError
+          ? err.status === 503
+            ? "The verification service is unavailable right now. Nothing was used — please try again shortly."
+            : err.message
+          : "Couldn't start the check. Please try again.",
+      );
+      // 403/409/429 change what this page should offer.
+      if (err instanceof ApiError && [403, 409, 429].includes(err.status)) await reload();
+      return;
+    }
+
+    try {
+      detachSdk.current = await launchLiveness({
+        token: session.sdkSessionToken,
+        reference: session.reference,
+        applicant: kyc.applicant,
+        onEvent: (e) => {
+          detachSdk.current = null;
+          setCapture("idle");
+          if (e.type === "submitted") {
+            setWatch({ origin: "here", deadline: Date.now() + POLL_WINDOW_MS });
+            return;
+          }
+          // The session is spent either way, but nothing was decided and
+          // no attempt was counted.
+          setAbandoned(session.reference);
+          setCaptureNote(
+            e.type === "closed"
+              ? "You closed the check before finishing. Nothing was decided and no attempt was used."
+              : `${sentence(e.message)} Nothing was decided and no attempt was used.`,
+          );
+          void reload();
+        },
+      });
+      setCapture((c) => (c === "starting" ? "open" : c));
+    } catch {
+      setCapture("idle");
+      setCaptureNote("The QoreID window couldn't load. Check your connection, reload the page and try again.");
+    }
+  }
 
   // --- Submit -----------------------------------------------------------------
   async function submit(body: { idType: KycIdType; idNumber: string }) {
@@ -325,27 +454,72 @@ export function VerifyIdentity({
   const blockedByName = user.provisionalName;
   const numberError =
     idNumber.length !== ID_LENGTH ? `Enter all ${ID_LENGTH} digits of your ${idType}` : undefined;
-  const canSubmit = !busy && !blockedByName && !outOfAttempts && !watching;
+  /** Anything in flight: a submit, a capture, or a webhook being waited on. */
+  const inFlight = busy || capture !== "idle" || !!watch;
+  const canSubmit = !inFlight && !blockedByName && !outOfAttempts;
   const fullName = `${kyc.applicant.firstName} ${kyc.applicant.lastName}`.trim();
+
+  const status = watch
+    ? watch.origin === "here"
+      ? "QoreID is checking your selfie and NIN. This usually takes a few seconds — the page updates by itself."
+      : "A check you started earlier is finishing. This page updates by itself."
+    : slow
+      ? "Your check is taking longer than usual. The result is saved to your account and will show here when it lands — there's no need to do it again."
+      : pending && pending.reference !== abandoned
+        ? "A check you started earlier is still waiting for a result. You can verify again instead — it didn't use an attempt."
+        : null;
+
+  const outcome = (
+    <div ref={outcomeRef} className="flex flex-col gap-5">
+      {cameraProblem ? (
+        <div role="alert" className="flex items-start gap-3 rounded-control border border-warn/40 bg-warn/10 px-4 py-3">
+          <CameraIcon className="mt-0.5 shrink-0 text-warn" />
+          <p className="text-label text-warn">{CAMERA_PROBLEM_COPY[cameraProblem]}</p>
+        </div>
+      ) : null}
+      {captureNote ? (
+        <p role="status" className="rounded-control border border-border bg-surface px-4 py-3 text-label text-text-dim">
+          {captureNote}
+        </p>
+      ) : null}
+      {failure ? (
+        <div role="alert" className="flex flex-col gap-1 rounded-control border border-danger/40 bg-danger/10 px-4 py-3">
+          <p className="text-label font-bold text-danger">
+            {failure.outcome === "LIVENESS_FAILED" ? "The selfie check didn't pass." : "That didn't match."}
+          </p>
+          <p className="text-label text-text-dim">{OUTCOME_HELP[failure.outcome] ?? sentence(failure.reason)}</p>
+          {failure.outcome === "NAME_MISMATCH" ? (
+            <Link href="/account?next=/host/verify" className="inline-flex min-h-10 items-center self-start text-label font-bold text-accent hover:text-accent-hi">
+              Edit your name
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+      <ErrorNote>{error}</ErrorNote>
+      {/* Before the button, not after a failure: there is a hard daily cap. */}
+      <p className={cx("text-label", attempts <= 2 ? "text-warn" : "text-text-dim")}>
+        {outOfAttempts
+          ? "You've used today's attempts. You can try again in 24 hours."
+          : `${attempts} ${attempts === 1 ? "attempt" : "attempts"} left today.` +
+            (method === "number" ? " Approving with your bank doesn't use one." : " Closing the check early doesn't use one.")}
+      </p>
+    </div>
+  );
 
   return (
     <Container className="flex flex-col gap-6 py-10">
       <Header
         title="Verify your identity"
-        lead="A one-time check so you can take card and bank-transfer payments. It takes about a minute. We only keep the last four digits of your number."
+        lead="A one-time check so you can take card and bank-transfer payments. It takes about a minute. We only keep the last four digits of your ID number."
       />
 
-      {watching || pending ? (
+      {status ? (
         <div
           role="status"
           className="flex items-start gap-3 rounded-card border border-border bg-surface px-4 py-3"
         >
-          {watching ? <Spinner className="mt-1 shrink-0 text-accent" /> : <LockIcon className="mt-0.5 shrink-0 text-text-faint" />}
-          <p className="text-label text-text-dim">
-            {watching
-              ? "A check you started in the CrowdPass app is finishing. This page updates by itself."
-              : "A check you started in the app is still waiting for a result. You can wait for it, or verify here instead — it didn't use an attempt."}
-          </p>
+          {watch ? <Spinner className="mt-1 shrink-0 text-accent" /> : <LockIcon className="mt-0.5 shrink-0 text-text-faint" />}
+          <p className="text-label text-text-dim">{status}</p>
         </div>
       ) : null}
 
@@ -391,94 +565,155 @@ export function VerifyIdentity({
         )}
       </section>
 
-      <form
-        noValidate
-        className={cx("flex flex-col gap-5", blockedByName && "opacity-60")}
-        onSubmit={(e) => {
-          e.preventDefault();
-          setTouched(true);
-          if (!canSubmit || numberError) return;
-          void submit({ idType, idNumber });
-        }}
-      >
-        <fieldset disabled={blockedByName || busy} className="flex min-w-0 flex-col gap-5">
-          {kyc.availableIdTypes.length > 1 ? (
-            <div className="flex flex-col gap-2">
-              <p id="kyc-idtype" className="text-label text-text-dim">Verify with</p>
-              <div role="radiogroup" aria-labelledby="kyc-idtype" className="grid grid-cols-2 gap-2">
-                {kyc.availableIdTypes.map((t) => {
-                  const on = t === idType;
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => {
-                        setIdType(t);
-                        setError(null);
-                      }}
-                      className={cx(
-                        "flex h-12 items-center justify-center gap-2 rounded-control border text-body font-bold transition-colors",
-                        on ? "border-accent bg-accent-tint text-text" : "border-border bg-surface text-text-dim hover:text-text",
-                      )}
-                    >
-                      {on ? <CheckIcon className="text-accent" /> : null}
-                      {t}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="flex flex-col gap-2">
-            <TextField
-              label={`Your ${idType}`}
-              icon={<LockIcon />}
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder={"0".repeat(ID_LENGTH)}
-              value={idNumber}
-              onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, "").slice(0, ID_LENGTH))}
-              error={touched ? numberError : undefined}
-              maxLength={ID_LENGTH}
-            />
-            <p className="text-helper text-text-faint">{ID_HELP[idType]}</p>
+      {WEB_LIVENESS_ENABLED ? (
+        <div className="flex flex-col gap-2">
+          <p id="kyc-method" className="text-label text-text-dim">How do you want to verify?</p>
+          <div role="radiogroup" aria-labelledby="kyc-method" className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+            {(
+              [
+                { key: "selfie", title: "Selfie + NIN", note: "Recommended · a short video selfie" },
+                { key: "number", title: "ID number", note: "BVN or NIN, approved with your bank" },
+              ] as const
+            ).map((m) => {
+              const on = m.key === method;
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  disabled={inFlight}
+                  onClick={() => {
+                    setMethod(m.key);
+                    setError(null);
+                    setFailure(null);
+                    setCaptureNote(null);
+                    setCameraProblem(null);
+                  }}
+                  className={cx(
+                    "flex min-h-16 items-center justify-between gap-3 rounded-control border px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                    on ? "border-accent bg-accent-tint" : "border-border bg-surface hover:border-border-strong",
+                  )}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-body font-bold text-text">{m.title}</span>
+                    <span className="block text-helper text-text-faint">{m.note}</span>
+                  </span>
+                  {on ? <CheckIcon className="shrink-0 text-accent" /> : null}
+                </button>
+              );
+            })}
           </div>
-        </fieldset>
+        </div>
+      ) : null}
 
-        {failure ? (
-          <div role="alert" className="flex flex-col gap-1 rounded-control border border-danger/40 bg-danger/10 px-4 py-3">
-            <p className="text-label font-bold text-danger">That didn&apos;t match.</p>
-            <p className="text-label text-text-dim">{OUTCOME_HELP[failure.outcome] ?? failure.reason}</p>
-            {failure.outcome === "NAME_MISMATCH" ? (
-              <Link href="/account?next=/host/verify" className="inline-flex min-h-10 items-center self-start text-label font-bold text-accent hover:text-accent-hi">
-                Edit your name
-              </Link>
+      {method === "selfie" ? (
+        <section aria-label="Selfie and NIN" className={cx("flex flex-col gap-5", blockedByName && "opacity-60")}>
+          <ol className="flex flex-col divide-y divide-border rounded-card border border-border bg-surface">
+            <Step n={1} done={false} title="Allow the camera">
+              Your browser will ask. It&apos;s only used for the selfie.
+            </Step>
+            <Step n={2} done={false} title="Take a short video selfie">
+              Face a light, remove glasses or a cap, and keep your whole face in the frame.
+            </Step>
+            <Step n={3} done={false} title="Enter your NIN">
+              In QoreID&apos;s window — it goes straight to them, never through CrowdPass.
+            </Step>
+          </ol>
+
+          {outcome}
+
+          <Button
+            type="button"
+            disabled={!canSubmit}
+            onClick={() => void startSelfie()}
+            className="w-full sm:w-fit"
+          >
+            {capture !== "idle" || watch ? <Spinner /> : <CameraIcon />}
+            {capture === "camera"
+              ? "Waiting for the camera…"
+              : capture === "starting"
+                ? "Starting…"
+                : capture === "open"
+                  ? "Finish in the QoreID window"
+                  : watch
+                    ? "Checking…"
+                    : "Start selfie check"}
+          </Button>
+        </section>
+      ) : (
+        <form
+          noValidate
+          className={cx("flex flex-col gap-5", blockedByName && "opacity-60")}
+          onSubmit={(e) => {
+            e.preventDefault();
+            setTouched(true);
+            if (!canSubmit || numberError) return;
+            void submit({ idType, idNumber });
+          }}
+        >
+          <fieldset disabled={blockedByName || busy} className="flex min-w-0 flex-col gap-5">
+            {kyc.availableIdTypes.length > 1 ? (
+              <div className="flex flex-col gap-2">
+                <p id="kyc-idtype" className="text-label text-text-dim">Verify with</p>
+                <div role="radiogroup" aria-labelledby="kyc-idtype" className="grid grid-cols-2 gap-2">
+                  {kyc.availableIdTypes.map((t) => {
+                    const on = t === idType;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => {
+                          setIdType(t);
+                          setError(null);
+                        }}
+                        className={cx(
+                          "flex h-12 items-center justify-center gap-2 rounded-control border text-body font-bold transition-colors",
+                          on ? "border-accent bg-accent-tint text-text" : "border-border bg-surface text-text-dim hover:text-text",
+                        )}
+                      >
+                        {on ? <CheckIcon className="text-accent" /> : null}
+                        {t}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-col gap-2">
+              <TextField
+                label={`Your ${idType}`}
+                icon={<LockIcon />}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder={"0".repeat(ID_LENGTH)}
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, "").slice(0, ID_LENGTH))}
+                error={touched ? numberError : undefined}
+                maxLength={ID_LENGTH}
+              />
+              <p className="text-helper text-text-faint">{ID_HELP[idType]}</p>
+            </div>
+          </fieldset>
+
+          {outcome}
+
+          <div className="flex flex-col gap-3">
+            <Button type="submit" disabled={!canSubmit} className="w-full sm:w-fit">
+              {busy ? <Spinner /> : null}
+              {busy ? "Checking with NIBSS…" : `Verify with ${idType}`}
+            </Button>
+            {busy ? (
+              <p role="status" className="text-helper text-text-faint">
+                This can take up to a minute. Please keep this page open.
+              </p>
             ) : null}
           </div>
-        ) : null}
-        <ErrorNote>{error}</ErrorNote>
-
-        <div className="flex flex-col gap-3">
-          {/* Before the button, not after a failure: there is a hard daily cap. */}
-          <p className={cx("text-label", attempts <= 2 ? "text-warn" : "text-text-dim")}>
-            {outOfAttempts
-              ? "You've used today's attempts. You can try again in 24 hours."
-              : `${attempts} ${attempts === 1 ? "attempt" : "attempts"} left today. Approving with your bank doesn't use one.`}
-          </p>
-          <Button type="submit" disabled={!canSubmit} className="w-full sm:w-fit">
-            {busy ? <Spinner /> : null}
-            {busy ? "Checking with NIBSS…" : `Verify with ${idType}`}
-          </Button>
-          {busy ? (
-            <p role="status" className="text-helper text-text-faint">
-              This can take up to a minute. Please keep this page open.
-            </p>
-          ) : null}
-        </div>
-      </form>
+        </form>
+      )}
     </Container>
   );
 }
