@@ -1,18 +1,66 @@
 /**
- * Block-explorer links. Ported from `v2-mobile/src/lib/onchain.js` (the
- * explorer half; the RPC balance read arrives with the wallet card, #26).
+ * Chains, explorers and USDC balances. Ported from `v2-mobile/src/lib/onchain.js`
+ * (#26); the explorer half arrived earlier with payouts.
  *
- * Explorer URLs are static public facts, keyed by the backend's chain id.
- * An unknown chain yields no link rather than a guess: mobile defaults every
- * payout to the Base Sepolia explorer, which sends a mainnet hash to a
- * testnet explorer that has never heard of it.
+ * Wallets are custodial (Circle). This module only READS: a public JSON-RPC
+ * `eth_call` to the USDC contract's `balanceOf`. No signing, no keys, no
+ * wallet SDK — and there is no user-facing wallet endpoint on the backend to
+ * ask instead.
+ *
+ * Keyed by the backend's chain id. An unknown chain yields no link and no
+ * balance rather than a guess: mobile defaults every payout to the Base
+ * Sepolia explorer, which sends a mainnet hash to a testnet explorer that has
+ * never heard of it.
  */
 
-const EXPLORERS: Record<string, string> = {
-  "BASE-SEPOLIA": "https://sepolia.basescan.org",
-  BASE: "https://basescan.org",
-  "ARC-TESTNET": "https://testnet.arcscan.app",
+export interface ChainInfo {
+  /** The backend's id, e.g. `BASE-SEPOLIA`. */
+  id: string;
+  name: string;
+  explorer: string;
+  /** Public RPC. Override per deploy with `RPC_URL_<ID>` (server-side). */
+  rpc: string;
+  /** The USDC ERC-20 contract. 6 decimals on all three. */
+  usdc: string;
+  testnet: boolean;
+}
+
+/**
+ * Verified 2026-10-04 against each RPC: `symbol()` is `USDC`, `decimals()` is
+ * 6. On Arc, USDC is the native gas token and `0x3600…` is its ERC-20 face.
+ */
+export const CHAINS: Record<string, ChainInfo> = {
+  BASE: {
+    id: "BASE",
+    name: "Base",
+    explorer: "https://basescan.org",
+    rpc: "https://mainnet.base.org",
+    usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    testnet: false,
+  },
+  "BASE-SEPOLIA": {
+    id: "BASE-SEPOLIA",
+    name: "Base Sepolia",
+    explorer: "https://sepolia.basescan.org",
+    rpc: "https://sepolia.base.org",
+    usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    testnet: true,
+  },
+  "ARC-TESTNET": {
+    id: "ARC-TESTNET",
+    name: "Arc Testnet",
+    explorer: "https://testnet.arcscan.app",
+    rpc: "https://rpc.testnet.arc.network",
+    usdc: "0x3600000000000000000000000000000000000000",
+    testnet: true,
+  },
 };
+
+export const USDC_DECIMALS = 6;
+
+export function chainInfo(chain: string | null | undefined): ChainInfo | undefined {
+  return chain ? CHAINS[chain.toUpperCase()] : undefined;
+}
 
 export interface ExplorerLinks {
   tx?: string;
@@ -23,7 +71,7 @@ export function explorerLinks(
   chain: string | null | undefined,
   { tx, address }: { tx?: string | null; address?: string | null },
 ): ExplorerLinks {
-  const base = chain ? EXPLORERS[chain.toUpperCase()] : undefined;
+  const base = chainInfo(chain)?.explorer;
   if (!base) return {};
   return {
     ...(tx ? { tx: `${base}/tx/${tx}` } : null),
@@ -35,4 +83,64 @@ export function explorerLinks(
 export function shortHash(value: string | null | undefined): string {
   if (!value) return "";
   return value.length > 14 ? `${value.slice(0, 6)}…${value.slice(-4)}` : value;
+}
+
+const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+
+/**
+ * USDC held by `address` on `chain`, as an exact decimal string
+ * (`"128.5"`), or null when it could not be read — unknown chain, bad
+ * address, RPC down. Null is "we don't know", never zero.
+ *
+ * Server-side: `fetch` here is Node's, so browser CORS on public RPCs never
+ * comes into it, and the RPC override stays out of the bundle.
+ */
+export async function fetchUsdcBalance(
+  chain: string,
+  address: string,
+  { timeoutMs = 6000 }: { timeoutMs?: number } = {},
+): Promise<string | null> {
+  const info = chainInfo(chain);
+  if (!info || !ADDRESS.test(address)) return null;
+  const rpc = process.env[`RPC_URL_${info.id.replace(/-/g, "_")}`] || info.rpc;
+
+  // balanceOf(address): selector + the address left-padded to 32 bytes.
+  const data = `0x70a08231${address.slice(2).toLowerCase().padStart(64, "0")}`;
+  try {
+    const res = await fetch(rpc, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_call",
+        params: [{ to: info.usdc, data }, "latest"],
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { result?: unknown };
+    if (typeof body.result !== "string" || !/^0x[0-9a-fA-F]*$/.test(body.result)) return null;
+    return unitsToDecimal(BigInt(body.result === "0x" ? "0" : body.result).toString(), USDC_DECIMALS);
+  } catch {
+    return null;
+  }
+}
+
+/** `"128500000"` at 6 decimals → `"128.5"`. String math: no float rounding. */
+export function unitsToDecimal(units: string, decimals: number): string {
+  const padded = units.replace(/^0+/, "").padStart(decimals + 1, "0");
+  const whole = padded.slice(0, -decimals);
+  const frac = padded.slice(-decimals).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole;
+}
+
+/**
+ * A balance for display: at least two decimals, never rounded away —
+ * `"128.5"` → `"128.50"`, `"0.000001"` stays. Thousands separated.
+ */
+export function formatUsdc(decimal: string): string {
+  const [whole, frac = ""] = decimal.split(".");
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${frac.padEnd(2, "0")}`;
 }
