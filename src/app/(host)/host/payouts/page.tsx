@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ApiError } from "@/lib/api";
 import { requireUser } from "@/lib/session";
 import { chainsForEvents, fetchPayouts } from "@/lib/organizer";
@@ -55,8 +56,11 @@ export default async function HostPayoutsPage({
         <h1 className="text-title font-bold text-text">Payouts</h1>
         <p className="max-w-2xl text-body text-text-dim">
           The on-chain USDC escrow from your crypto events, withdrawn to your
-          CrowdPass wallet. Card and bank sales settle to your bank directly
-          and don&apos;t appear here.
+          CrowdPass wallet. Card and bank sales settle to{" "}
+          <Link href="/host/payout-account" className="font-bold text-accent hover:text-accent-hi">
+            your bank account
+          </Link>{" "}
+          directly and don&apos;t appear here.
         </p>
       </header>
 

@@ -421,6 +421,63 @@ export type ApiKycVerifyResult =
       message: string;
     };
 
+/** `GET /organizer/banks` — live from Paystack. `code` is the `bankCode`. */
+export interface ApiBank {
+  name: string;
+  code: string;
+  slug?: string;
+}
+
+export type PayoutProvider = "PAYSTACK" | "MONNIFY";
+
+/** One provider's result when a bank change is pushed to its subaccount. */
+export interface ApiProviderSync {
+  provider: PayoutProvider;
+  synced: boolean;
+  reason?: string;
+}
+
+/** One side of a bank change. Account numbers are masked. */
+export interface ApiBankSnapshot {
+  bankName: string | null;
+  bankCode: string | null;
+  accountNumber: string | null;
+  accountName: string | null;
+}
+
+/**
+ * `GET /organizer/bank-details/history` — append-only, newest first. Not the
+ * shared `pagination` shape: `{ data, total, skip, limit }`.
+ */
+export interface ApiBankHistory {
+  data: {
+    id: string;
+    reason: "INITIAL_SETUP" | "BANK_UPDATE" | string;
+    previous: ApiBankSnapshot | null;
+    current: ApiBankSnapshot;
+    providers: ApiProviderSync[] | null;
+    changedAt: string;
+  }[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+/**
+ * `PUT /organizer/bank-details`. `providers` lists every enabled subaccount
+ * the change was pushed to; one with `synced: false` still settles to the
+ * OLD bank. (If all failed it is a 502 and nothing changed.)
+ */
+export interface ApiBankUpdateResult {
+  bankName: string | null;
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+  bankVerified: boolean;
+  updatedAt: string;
+  providers: ApiProviderSync[];
+}
+
 /** One custodial Circle wallet. `address` is null while provisioning. */
 export interface ApiWallet {
   id: string;
