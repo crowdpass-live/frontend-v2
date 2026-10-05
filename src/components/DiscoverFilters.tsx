@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { cx, Spinner } from "./ui";
+import { Chip } from "./Chip";
+import { Spinner } from "./ui";
 import type { EventCategory } from "@/types/api";
 
 /**
@@ -180,31 +181,5 @@ export function DiscoverFilters({
       </div>
 
     </div>
-  );
-}
-
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cx(
-        "h-10 shrink-0 rounded-full px-4 text-label font-medium transition-colors",
-        active
-          ? "bg-accent text-ink"
-          : "bg-surface text-text-dim hover:bg-surface-strong hover:text-text",
-      )}
-    >
-      {children}
-    </button>
   );
 }

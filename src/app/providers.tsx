@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
 import { subscribeSession } from "@/lib/session-client";
+import { ToastProvider } from "@/components/Toast";
 
 const config: QueryClientConfig = {
   defaultOptions: {
@@ -41,7 +42,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <SessionSync />
-      {children}
+      {/* Outside every route group, so a toast outlives the page that
+          raised it (#16). */}
+      <ToastProvider>{children}</ToastProvider>
     </QueryClientProvider>
   );
 }

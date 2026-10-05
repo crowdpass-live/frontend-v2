@@ -11,6 +11,7 @@ import { fetchPaymentMethods, purchaseTicket } from "@/lib/crowdpass";
 import { money, normalizePhone } from "@/lib/format";
 import { rememberPendingPurchase } from "@/lib/pending";
 import { CardIcon, CoinIcon } from "@/components/icons";
+import { Stepper } from "@/components/Stepper";
 import { Button, Card, ErrorNote, Field, SectionTitle, Container, Spinner, cx } from "@/components/ui";
 import type { ApiEvent, ApiTicketType, PaymentProvider } from "@/types/api";
 
@@ -342,32 +343,12 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
             </p>
           ) : null}
         </div>
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            aria-label="Decrease quantity"
-            disabled={quantity <= 1}
-            onClick={() => setRequestedQuantity(Math.max(1, quantity - 1))}
-            className="grid size-11 place-items-center rounded-full border border-border-strong text-text transition-colors hover:bg-surface disabled:opacity-35"
-          >
-            <span aria-hidden className="text-xl leading-none">−</span>
-          </button>
-          <span
-            aria-live="polite"
-            className="min-w-8 text-center text-title font-bold text-text"
-          >
-            {quantity}
-          </span>
-          <button
-            type="button"
-            aria-label="Increase quantity"
-            disabled={quantity >= maxQuantity}
-            onClick={() => setRequestedQuantity(Math.min(maxQuantity, quantity + 1))}
-            className="grid size-11 place-items-center rounded-full bg-accent text-ink transition-colors hover:bg-accent-hi disabled:opacity-35 disabled:hover:bg-accent"
-          >
-            <span aria-hidden className="text-xl leading-none">+</span>
-          </button>
-        </div>
+        <Stepper
+          label="quantity"
+          value={quantity}
+          max={maxQuantity}
+          onChange={setRequestedQuantity}
+        />
       </section>
 
       {/* Buyer — the piece the mobile design has no equivalent for, because
