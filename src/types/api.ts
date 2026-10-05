@@ -193,11 +193,17 @@ export interface ApiPurchaseResult {
   tickets: { id: string; reference: string; status: TicketStatus }[];
   free: boolean;
   paidFromBalance?: boolean;
+  /** Read through `normalizeCryptoDeposit()` — the field names have moved. */
   crypto?: {
-    address: string;
-    token: string;
-    amount: string;
     chain: string;
+    address: string;
+    amountUsdc?: string;
+    usdcAddress?: string;
+    decimals?: number;
+    expiresAt?: string;
+    /** Older backends. */
+    amount?: string;
+    token?: string;
   } | null;
 }
 

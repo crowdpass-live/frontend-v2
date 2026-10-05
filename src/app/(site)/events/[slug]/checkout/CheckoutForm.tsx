@@ -9,6 +9,7 @@ import { z } from "zod";
 import { ApiError } from "@/lib/api";
 import { fetchPaymentMethods, purchaseTicket, type PurchasePayload } from "@/lib/crowdpass";
 import { money, normalizePhone } from "@/lib/format";
+import { normalizeCryptoDeposit } from "@/lib/crypto-deposit";
 import { rememberPendingPurchase } from "@/lib/pending";
 import { CardIcon, CoinIcon } from "@/components/icons";
 import { Stepper } from "@/components/Stepper";
@@ -245,7 +246,12 @@ export function CheckoutForm({
   const purchase = useMutation({
     mutationFn: (payload: PurchasePayload) =>
       purchaseTicket(payload, { auth: !!buyer }),
-    onSuccess: (result) => {
+    onSuccess: (result, payload) => {
+      // A crypto purchase that needs a deposit carries where-to-send-what.
+      // Null for every other lane, and for an instruction we can't read.
+      const deposit =
+        payload.paymentProvider === "CRYPTO" ? normalizeCryptoDeposit(result.crypto) : null;
+
       // Remember the reference before navigating away. The gateway redirect
       // comes back with a reference in the query string, but a buyer who
       // closes the tab mid-payment and reopens the site has nothing else to
@@ -257,6 +263,7 @@ export function CheckoutForm({
         amount: result.amount,
         currency: result.currency,
         ticketReference: result.tickets?.[0]?.reference ?? null,
+        crypto: deposit,
       });
 
       const first = result.tickets?.[0]?.reference;
@@ -264,6 +271,21 @@ export function CheckoutForm({
       // Free events settle in the same write — no gateway round trip.
       if (result.free && first) {
         router.push(`/tickets/${first}?celebrate=1`);
+        return;
+      }
+
+      // Crypto, covered by the buyer's custodial USDC: already settled, so
+      // straight to the ticket — never a deposit screen for money already
+      // paid. The ticket page owns the mint wait.
+      if (result.paidFromBalance && first) {
+        router.push(`/tickets/${first}?celebrate=1`);
+        return;
+      }
+
+      // Crypto, short: send the buyer to deposit USDC (#30). `checkoutUrl`
+      // is null on this lane — there is no gateway to redirect to.
+      if (deposit) {
+        router.push(`/checkout/crypto/${encodeURIComponent(result.reference)}`);
         return;
       }
 
@@ -275,8 +297,9 @@ export function CheckoutForm({
         return;
       }
 
-      // Crypto lane, or a fiat init that returned no URL. The callback page
-      // polls settlement and knows how to render every terminal state.
+      // A crypto response with no readable deposit, or a fiat init that
+      // returned no URL. The callback page polls settlement and knows how to
+      // render every terminal state.
       router.push(
         `/checkout/callback?reference=${encodeURIComponent(result.reference)}`,
       );

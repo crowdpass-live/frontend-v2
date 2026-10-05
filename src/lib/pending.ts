@@ -1,3 +1,5 @@
+import type { CryptoDeposit } from "./crypto-deposit";
+
 /**
  * The last purchase this browser started, kept in `localStorage`.
  *
@@ -26,6 +28,13 @@ export interface PendingPurchase {
   currency: string;
   /** First ticket in the order — where to send the buyer once it settles. */
   ticketReference: string | null;
+  /**
+   * A crypto purchase's deposit instruction (#30). Kept HERE, written by this
+   * origin, and never read from the URL: a deposit page that took its
+   * address from a query string would let anyone send a buyer a link with a
+   * real reference and their own address.
+   */
+  crypto?: CryptoDeposit | null;
   startedAt: number;
 }
 
