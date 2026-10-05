@@ -252,6 +252,34 @@ export async function findOwnEvent(eventId: string) {
 }
 
 /**
+ * What the publish / cancel controls need about one of the caller's events:
+ * its slug, status, sales, and whether it's refundable — the last decides
+ * whether cancelling is even allowed once tickets are sold. `isRefundable`
+ * lives on the event, which has no organizer read: the drafts list for a
+ * draft, the public read for a published event. Null if it isn't theirs.
+ */
+export async function fetchEventControls(eventId: string): Promise<{
+  slug: string;
+  status: EventStatus;
+  ticketsSold: number;
+  isRefundable: boolean;
+} | null> {
+  const own = await findOwnEvent(eventId);
+  if (!own) return null;
+  let isRefundable = false;
+  if (own.status === "PUBLISHED") {
+    const event = await apiFetch<ApiEvent>(`/events/${encodeURIComponent(own.slug)}`, {
+      cache: "no-store",
+      timeout: 45_000,
+    });
+    isRefundable = event.isRefundable;
+  } else if (own.status === "DRAFT") {
+    isRefundable = !!(await fetchOwnDraft(eventId))?.isRefundable;
+  }
+  return { slug: own.slug, status: own.status, ticketsSold: own.stats.ticketsSold, isRefundable };
+}
+
+/**
  * An event's ticket types, with ids and `claimOnly` — the same sources
  * mobile's `fetchOwnEventTiers` uses: the public event for a published
  * event, the drafts list for a draft. Ended and cancelled events have no

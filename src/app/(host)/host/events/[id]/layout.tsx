@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { fetchEventAnalytics, settle } from "@/lib/organizer";
+import { isRealSubaccount } from "@/lib/payout-setup";
+import { getCurrentUser } from "@/lib/session";
 import { formatDate } from "@/lib/format";
 import { ArrowLeftIcon } from "@/components/icons";
-import { DraftBar } from "@/components/host/DraftBar";
+import { EventStatusBar } from "@/components/host/EventStatusBar";
 import { EventTabs } from "@/components/host/EventTabs";
 import { Badge, Container } from "@/components/ui";
 import type { EventStatus } from "@/types/api";
@@ -43,6 +45,12 @@ export default async function HostEventLayout({
   }
 
   const { event } = result.value;
+  // Every event takes USDC; card and transfer need a real subaccount.
+  const profile = (await getCurrentUser().catch(() => null))?.organizerProfile;
+  const lanes =
+    isRealSubaccount(profile?.paystackSubaccountCode) || isRealSubaccount(profile?.monnifySubAccountCode)
+      ? "fiat-and-crypto"
+      : "crypto-only";
   const status = STATUS[event.status] ?? { label: event.status, tone: "neutral" as const };
 
   return (
@@ -60,7 +68,7 @@ export default async function HostEventLayout({
         </div>
         <p className="text-label text-text-faint">{formatDate(event.startTime)}</p>
       </div>
-      {event.status === "DRAFT" ? <DraftBar eventId={event.id} /> : null}
+      <EventStatusBar eventId={event.id} eventName={event.name} status={event.status} lanes={lanes} />
       <EventTabs eventId={event.id} />
       {children}
     </Container>
