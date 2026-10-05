@@ -489,7 +489,7 @@ export function VerifyIdentity({
           </p>
           <p className="text-label text-text-dim">{OUTCOME_HELP[failure.outcome] ?? sentence(failure.reason)}</p>
           {failure.outcome === "NAME_MISMATCH" ? (
-            <Link href="/account?next=/host/verify" className="inline-flex min-h-10 items-center self-start text-label font-bold text-accent hover:text-accent-hi">
+            <Link href="/account?next=/host/verify#details" className="inline-flex min-h-10 items-center self-start text-label font-bold text-accent hover:text-accent-hi">
               Edit your name
             </Link>
           ) : null}
@@ -552,12 +552,12 @@ export function VerifyIdentity({
           </div>
         </div>
         {blockedByName ? (
-          <ButtonLink href="/account?next=/host/verify" size="sm" className="w-full sm:w-fit">
+          <ButtonLink href="/account?next=/host/verify#details" size="sm" className="w-full sm:w-fit">
             Set your real name
           </ButtonLink>
         ) : (
           <Link
-            href="/account?next=/host/verify"
+            href="/account?next=/host/verify#details"
             className="inline-flex min-h-10 items-center self-start text-label font-bold text-accent hover:text-accent-hi"
           >
             Not exactly right? Edit your name

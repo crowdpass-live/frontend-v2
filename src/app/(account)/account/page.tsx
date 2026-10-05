@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/session";
+import { safeNext } from "@/lib/session-token";
 import { fetchMyTickets } from "@/lib/my-tickets";
 import { walletViews } from "@/lib/wallets";
 import { ProfileForm } from "@/components/account/ProfileForm";
@@ -29,6 +30,10 @@ export default async function AccountPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const user = await requireUser();
+  // Only ever a path on this site; anything else is dropped, not followed.
+  // Set when identity verification sends a host here to fix their name.
+  const raw = (await searchParams).next;
+  const next = raw && safeNext(raw) !== "/" ? safeNext(raw) : undefined;
   const ticketCount = await fetchMyTickets(1, 1)
     .then((r) => r.pagination.total)
     .catch(() => null);

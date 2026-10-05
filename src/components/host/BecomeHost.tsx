@@ -90,7 +90,7 @@ export function BecomeHost({
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           {/* Verify while they're here; a new host who leaves rarely comes back to it. */}
           <ButtonLink
-            href={placeholderName ? "/account?next=/host/verify" : "/host/verify"}
+            href={placeholderName ? "/account?next=/host/verify#details" : "/host/verify"}
             className="w-full sm:w-auto"
           >
             {placeholderName ? "Set your name, then verify" : "Verify your identity"}

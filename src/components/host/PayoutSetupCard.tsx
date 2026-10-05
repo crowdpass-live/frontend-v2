@@ -16,7 +16,7 @@ export function PayoutSetupCard({ setup }: { setup: PayoutSetup }) {
       state: setup.name,
       title: "Use your real name",
       body: "Exactly as on your NIN or BVN — it's what we check.",
-      href: "/account?next=/host/verify",
+      href: "/account?next=/host/verify#details",
       cta: "Set your name",
     },
     {
