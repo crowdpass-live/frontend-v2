@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { fetchEventBySlug } from "@/lib/crowdpass";
 import { formatDate, saleWindow } from "@/lib/format";
+import { isProvisionalName } from "@/lib/names";
+import { getCurrentUser } from "@/lib/session";
 import { CheckoutForm } from "./CheckoutForm";
 import { ArrowLeftIcon } from "@/components/icons";
 import { ButtonLink, Card, Container } from "@/components/ui";
@@ -38,6 +40,20 @@ export default async function CheckoutPage({
   // willing to pay.
   const { canBuy, reason } = saleWindow(event);
   const blocked = canBuy ? null : `${reason}.`;
+
+  // Signed in: prefill the buyer from the session (#28). Cookie-only when
+  // signed out, so the guest path makes no extra call; and any failure to
+  // read the account falls back to the guest form rather than breaking
+  // checkout. An email-derived placeholder name is not offered as the name
+  // on the ticket.
+  const user = blocked ? null : await getCurrentUser().catch(() => null);
+  const buyer = user
+    ? {
+        name: isProvisionalName(user) ? "" : [user.firstName, user.lastName].filter(Boolean).join(" "),
+        email: user.email,
+        phone: user.phone,
+      }
+    : null;
 
   return (
     // `pb-40` clears the fixed mobile pay bar; from `lg` the summary moves
@@ -80,7 +96,7 @@ export default async function CheckoutPage({
             </ButtonLink>
           </div>
         ) : (
-          <CheckoutForm event={event} />
+          <CheckoutForm event={event} buyer={buyer} />
         )}
       </Container>
     </main>
