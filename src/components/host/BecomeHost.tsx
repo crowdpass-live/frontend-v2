@@ -7,6 +7,7 @@ import { ApiError, apiFetch } from "@/lib/api";
 import { isProvisionalName } from "@/lib/names";
 import { Mascot } from "@/components/Mascot";
 import { CardIcon, CheckIcon, CoinIcon } from "@/components/icons";
+import { SplitPage } from "@/components/app/SplitPage";
 import { Button, ButtonLink, Container, Spinner, cx } from "@/components/ui";
 import type { ApiOrganizerCountry } from "@/types/api";
 
@@ -115,16 +116,20 @@ export function BecomeHost({
   }
 
   return (
-    <Container className="flex flex-col gap-6 py-10">
-      <div className="flex items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-title font-bold text-text">Start selling tickets</h1>
-          <p className="mt-1 text-body text-text-dim">
-            Host mode is free and takes one step. You can publish crypto-paid events straight away.
-          </p>
+    <SplitPage
+      header={
+        <div className="flex max-w-2xl items-end justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-title font-bold text-text">Start selling tickets</h1>
+            <p className="mt-1 text-body text-text-dim">
+              Host mode is free and takes one step. You can publish crypto-paid events straight away.
+            </p>
+          </div>
+          <Mascot pose="lets-go" height={88} />
         </div>
-        <Mascot pose="lets-go" height={88} />
-      </div>
+      }
+      aside={needsEmail ? undefined : <WhatHappensNext id="host-next-aside" />}
+    >
 
       {needsEmail ? (
         <div className="flex flex-col gap-3 rounded-card border border-warn/40 bg-warn/10 p-5">
@@ -179,29 +184,10 @@ export function BecomeHost({
             </div>
           </section>
 
-          <section aria-labelledby="host-next" className="flex flex-col gap-3">
-            <h2 id="host-next" className="text-section font-bold text-text">What happens next</h2>
-            <ul className="flex flex-col divide-y divide-border rounded-card border border-border bg-surface">
-              <li className="flex gap-3 px-4 py-3">
-                <CoinIcon className="mt-0.5 shrink-0 text-accent" />
-                <span>
-                  <span className="block text-body font-bold text-text">Crypto events — right away</span>
-                  <span className="block text-label text-text-dim">
-                    Create and publish events paid in USDC as soon as host mode is on.
-                  </span>
-                </span>
-              </li>
-              <li className="flex gap-3 px-4 py-3">
-                <CardIcon className="mt-0.5 shrink-0 text-text-dim" />
-                <span>
-                  <span className="block text-body font-bold text-text">Card &amp; transfer — two more steps</span>
-                  <span className="block text-label text-text-dim">
-                    Verify your identity, then connect a bank account.
-                  </span>
-                </span>
-              </li>
-            </ul>
-          </section>
+          {/* Inline on a phone; the side column on a wide screen. */}
+          <div className="lg:hidden">
+            <WhatHappensNext id="host-next" />
+          </div>
 
           {placeholderName ? (
             <p className="text-label text-text-dim">
@@ -219,6 +205,34 @@ export function BecomeHost({
           </Button>
         </>
       )}
-    </Container>
+    </SplitPage>
+  );
+}
+
+function WhatHappensNext({ id }: { id: string }) {
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-3">
+      <h2 id={id} className="text-section font-bold text-text">What happens next</h2>
+      <ul className="flex flex-col divide-y divide-border rounded-card border border-border bg-surface">
+        <li className="flex gap-3 px-4 py-3">
+          <CoinIcon className="mt-0.5 shrink-0 text-accent" />
+          <span>
+            <span className="block text-body font-bold text-text">Crypto events — right away</span>
+            <span className="block text-label text-text-dim">
+              Create and publish events paid in USDC as soon as host mode is on.
+            </span>
+          </span>
+        </li>
+        <li className="flex gap-3 px-4 py-3">
+          <CardIcon className="mt-0.5 shrink-0 text-text-dim" />
+          <span>
+            <span className="block text-body font-bold text-text">Card &amp; transfer — two more steps</span>
+            <span className="block text-label text-text-dim">
+              Verify your identity, then connect a bank account.
+            </span>
+          </span>
+        </li>
+      </ul>
+    </section>
   );
 }

@@ -4,7 +4,7 @@ import { Container } from "@/components/ui";
 /** Mirrors the form: heading, the name card, the ID picker and field. */
 export default function VerifyIdentityLoading() {
   return (
-    <Container className="flex flex-col gap-6 py-10">
+    <Container size="page" className="flex flex-col gap-6 py-10 [&>*]:max-w-2xl">
       <span className="sr-only" role="status">Loading verification</span>
       <div className="flex flex-col gap-2">
         <Skeleton className="h-4 w-24" />
