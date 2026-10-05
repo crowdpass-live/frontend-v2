@@ -131,9 +131,9 @@ export default async function HostDashboardPage({
           <h2 id="events-heading" className="text-section font-bold text-text">
             Your events
           </h2>
-          <p className="text-helper text-text-faint">
-            New events are created in the CrowdPass app for now.
-          </p>
+          <ButtonLink href="/host/events/new" size="sm" className="w-auto">
+            Create event
+          </ButtonLink>
         </div>
 
         {/* The one strip allowed to scroll sideways on a phone. */}
@@ -196,14 +196,15 @@ function NoEvents({ greeting, setup }: { greeting: string; setup: PayoutSetup | 
         <Mascot pose="lets-go" height={130} />
         <h1 className="text-title font-bold text-text">{greeting}</h1>
         <p className="text-body text-text-dim">
-          You haven&apos;t created an event yet. Create one in the CrowdPass app
-          and it shows up here — sales, check-ins and revenue, on a bigger screen.
+          You haven&apos;t created an event yet. It takes a few minutes, saves as
+          a draft, and nothing is public until you publish it.
         </p>
+        <ButtonLink href="/host/events/new" className="w-full sm:w-auto">
+          Create your first event
+        </ButtonLink>
       </div>
       {setup && !setup.complete ? <PayoutSetupCard setup={setup} /> : null}
-      <ButtonLink href="/" variant="secondary" className="w-full sm:w-auto sm:self-center">
-        Browse events
-      </ButtonLink>
+
     </Container>
   );
 }

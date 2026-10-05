@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api";
 import { fetchEventAnalytics, settle } from "@/lib/organizer";
 import { formatDate } from "@/lib/format";
 import { ArrowLeftIcon } from "@/components/icons";
+import { DraftBar } from "@/components/host/DraftBar";
 import { EventTabs } from "@/components/host/EventTabs";
 import { Badge, Container } from "@/components/ui";
 import type { EventStatus } from "@/types/api";
@@ -59,6 +60,7 @@ export default async function HostEventLayout({
         </div>
         <p className="text-label text-text-faint">{formatDate(event.startTime)}</p>
       </div>
+      {event.status === "DRAFT" ? <DraftBar eventId={event.id} /> : null}
       <EventTabs eventId={event.id} />
       {children}
     </Container>

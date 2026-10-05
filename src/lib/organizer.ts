@@ -285,6 +285,26 @@ export async function fetchOwnTicketTypes(eventId: string): Promise<{
   return { status: own.status, ticketTypes: [] };
 }
 
+/** `GET /events/chains` — public; the create form's settlement-chain options. */
+export function fetchChains() {
+  return apiFetch<{ id: string; displayName: string; isTestnet: boolean }[]>("/events/chains", {
+    next: { revalidate: 300 },
+    timeout: 20_000,
+  });
+}
+
+/**
+ * One of the caller's DRAFT events, in full, for the edit form — a draft has
+ * no public read, so it comes from `GET /events/me/drafts`. Null when the id
+ * isn't one of their drafts (published, someone else's, or gone).
+ */
+export async function fetchOwnDraft(eventId: string) {
+  const drafts = await serverFetch<(ApiEvent & { ticketTypes: ApiTicketType[] })[]>("/events/me/drafts", {
+    timeout: 45_000,
+  });
+  return drafts.find((d) => d.id === eventId) ?? null;
+}
+
 /** `@Roles(ORGANIZER)` plus ownership — an ADMIN gets 403 here. */
 export function fetchClaimList(eventId: string, ticketTypeId: string) {
   return serverFetch<ApiClaimList>(claimEntriesPath(eventId, ticketTypeId), {

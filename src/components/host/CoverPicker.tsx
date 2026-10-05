@@ -187,7 +187,7 @@ export function CoverPicker({
               Change cover
             </Button>
             <Button type="button" size="sm" variant="ghost" disabled={disabled} onClick={() => onChange(null)} className="w-full sm:w-auto">
-              Remove
+              Remove cover
             </Button>
           </div>
         </div>
