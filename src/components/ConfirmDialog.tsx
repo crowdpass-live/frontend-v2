@@ -19,6 +19,7 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel,
+  cancelLabel = "Cancel",
   tone = "default",
   busy = false,
   error,
@@ -29,6 +30,8 @@ export function ConfirmDialog({
   title: string;
   children: React.ReactNode;
   confirmLabel: string;
+  /** The safe choice. Rename it when "Cancel" would be ambiguous (cancelling an event). */
+  cancelLabel?: string;
   tone?: "default" | "danger";
   busy?: boolean;
   error?: string | null;
@@ -81,7 +84,7 @@ export function ConfirmDialog({
             disabled={busy}
             className="w-full sm:w-auto"
           >
-            Cancel
+            {cancelLabel}
           </Button>
           <Button
             type="button"
