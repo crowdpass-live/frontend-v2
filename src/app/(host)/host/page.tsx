@@ -131,9 +131,10 @@ export default async function HostDashboardPage({
           <h2 id="events-heading" className="text-section font-bold text-text">
             Your events
           </h2>
-          <p className="text-helper text-text-faint">
-            New events are created in the CrowdPass app for now.
-          </p>
+          {/* The sidebar carries it on a wide screen. */}
+          <ButtonLink href="/host/events/new" size="sm" className="w-auto lg:hidden">
+            Create event
+          </ButtonLink>
         </div>
 
         {/* The one strip allowed to scroll sideways on a phone. */}
@@ -170,7 +171,7 @@ export default async function HostDashboardPage({
         ) : (
           // grid-cols-1 is minmax(0, 1fr): without it the implicit column
           // grows to fit a long event name and `truncate` never kicks in.
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {list.events.map((event) => (
               <li key={event.id} className="flex min-w-0">
                 <OrganizerEventCard event={event} />
@@ -196,14 +197,15 @@ function NoEvents({ greeting, setup }: { greeting: string; setup: PayoutSetup | 
         <Mascot pose="lets-go" height={130} />
         <h1 className="text-title font-bold text-text">{greeting}</h1>
         <p className="text-body text-text-dim">
-          You haven&apos;t created an event yet. Create one in the CrowdPass app
-          and it shows up here — sales, check-ins and revenue, on a bigger screen.
+          You haven&apos;t created an event yet. It takes a few minutes, saves as
+          a draft, and nothing is public until you publish it.
         </p>
+        <ButtonLink href="/host/events/new" className="w-full sm:w-auto">
+          Create your first event
+        </ButtonLink>
       </div>
       {setup && !setup.complete ? <PayoutSetupCard setup={setup} /> : null}
-      <ButtonLink href="/" variant="secondary" className="w-full sm:w-auto sm:self-center">
-        Browse events
-      </ButtonLink>
+
     </Container>
   );
 }

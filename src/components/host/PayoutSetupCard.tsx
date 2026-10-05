@@ -57,11 +57,18 @@ export function PayoutSetupCard({ setup }: { setup: PayoutSetup }) {
       <p className="-mt-2 text-label text-text-dim">
         Crypto (USDC) events work already. These steps open card and bank-transfer payments too.
       </p>
-      <ol className="flex flex-col gap-3">
+      {/* A list on a phone; three steps side by side on a wide screen. */}
+      <ol className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         {steps.map((s, i) => {
           const active = s === current;
           return (
-            <li key={s.key} className="flex gap-3">
+            <li
+              key={s.key}
+              className={cx(
+                "flex gap-3 lg:rounded-control lg:border lg:p-4",
+                active ? "lg:border-accent/40 lg:bg-bg/50" : "lg:border-border/60",
+              )}
+            >
               <span
                 aria-hidden
                 className={cx(

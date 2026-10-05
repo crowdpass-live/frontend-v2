@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api";
 import { checkInWindow } from "@/lib/door-window";
 import { formatDateTimeLong, formatTime } from "@/lib/format";
+import { WIDE, useMediaQuery } from "@/lib/use-media-query";
 import { Button, Spinner, cx } from "@/components/ui";
 import { DoorRoster } from "./DoorRoster";
 import { QrScanner } from "./QrScanner";
@@ -72,6 +73,7 @@ export function DoorConsole({
   endTime: string | null;
 }) {
   const [mode, setMode] = useState<Mode>("scan");
+  const wide = useMediaQuery(WIDE);
   const [result, setResult] = useState<Result | null>(null);
   const [revoked, setRevoked] = useState(false);
   const [code, setCode] = useState("");
@@ -210,8 +212,20 @@ export function DoorConsole({
     );
   }
 
-  return (
-    <div className="flex flex-col gap-5">
+  // On a wide screen (a laptop on the check-in desk) the guest list is always
+  // beside the scanner, so a name search never costs the camera; on a phone
+  // it's the third tab. Mounted once either way — the roster fetches.
+  const effectiveMode = wide && mode === "list" ? "scan" : mode;
+  const tabs = (
+    [
+      ["scan", "Scan"],
+      ["code", "Type code"],
+      ["list", "Guest list"],
+    ] as const
+  ).filter(([m]) => !(wide && m === "list"));
+
+  const console_ = (
+    <div className={cx("flex min-w-0 flex-col gap-5", !wide && "max-w-xl")}>
       {doorWindow !== "open" ? (
         <p className="rounded-control border border-warn/40 bg-warn/10 px-4 py-3 text-label text-warn">
           {doorWindow === "upcoming"
@@ -221,26 +235,24 @@ export function DoorConsole({
       ) : null}
 
       <div className="flex flex-col gap-2">
-        <div role="tablist" aria-label="How to find the ticket" className="grid grid-cols-3 gap-1 rounded-full border border-border bg-surface p-1">
-          {(
-            [
-              ["scan", "Scan"],
-              ["code", "Type code"],
-              ["list", "Guest list"],
-            ] as const
-          ).map(([m, label]) => (
+        <div
+          role="tablist"
+          aria-label="How to find the ticket"
+          className={cx("grid gap-1 rounded-full border border-border bg-surface p-1", tabs.length === 3 ? "grid-cols-3" : "grid-cols-2")}
+        >
+          {tabs.map(([m, label]) => (
             <button
               key={m}
               type="button"
               role="tab"
-              aria-selected={mode === m}
+              aria-selected={effectiveMode === m}
               onClick={() => {
                 setMode(m);
                 setResult(null);
               }}
               className={cx(
                 "min-h-10 whitespace-nowrap rounded-full px-2 text-label font-medium transition-colors",
-                mode === m ? "bg-surface-strong text-text" : "text-text-dim hover:text-text",
+                effectiveMode === m ? "bg-surface-strong text-text" : "text-text-dim hover:text-text",
               )}
             >
               {label}
@@ -267,13 +279,13 @@ export function DoorConsole({
 
       {/* Kept mounted while a result shows, but paused: restarting the
           camera for every guest costs a second each time. */}
-      {mode === "scan" ? (
+      {effectiveMode === "scan" ? (
         <div className={cx(result && "hidden")}>
           <QrScanner paused={!!result} onCode={(c) => void examine(c, "scan")} />
         </div>
       ) : null}
 
-      {mode === "code" && !result ? (
+      {effectiveMode === "code" && !result ? (
         <form
           className="flex flex-col gap-3"
           onSubmit={(e) => {
@@ -301,9 +313,20 @@ export function DoorConsole({
         </form>
       ) : null}
 
-      {mode === "list" && !result ? (
+      {!wide && mode === "list" && !result ? (
         <DoorRoster eventId={eventId} refreshKey={rosterKey} onPick={(ref) => void examine(ref, "reference")} />
       ) : null}
+    </div>
+  );
+
+  if (!wide) return console_;
+  return (
+    <div className="grid grid-cols-[minmax(0,26rem)_minmax(0,1fr)] items-start gap-8 xl:gap-12">
+      {console_}
+      <section aria-label="Guest list" className="flex min-w-0 flex-col gap-3">
+        <h2 className="text-section font-bold text-text">Guest list</h2>
+        <DoorRoster eventId={eventId} refreshKey={rosterKey} onPick={(ref) => void examine(ref, "reference")} />
+      </section>
     </div>
   );
 }

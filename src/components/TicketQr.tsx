@@ -19,10 +19,16 @@ export function TicketQr({
   token,
   size = 220,
   className,
+  alt = "Ticket QR code",
+  failedNote = "Couldn\u2019t draw the QR code. Your reference below still works at the door.",
 }: {
   token: string;
   size?: number;
   className?: string;
+  /** What the code holds, for screen readers. Reused for deposit addresses. */
+  alt?: string;
+  /** Shown if encoding fails; say what still works without the QR. */
+  failedNote?: string;
 }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -48,10 +54,7 @@ export function TicketQr({
         className="grid place-items-center rounded-xl bg-neutral-100 p-4 text-center"
         style={{ width: size, height: size }}
       >
-        <p className="text-helper text-neutral-600">
-          Couldn&apos;t draw the QR code. Your reference below still works at
-          the door.
-        </p>
+        <p className="text-helper text-neutral-600">{failedNote}</p>
       </div>
     );
   }
@@ -66,7 +69,7 @@ export function TicketQr({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={dataUrl}
-          alt="Ticket QR code"
+          alt={alt}
           width={size}
           height={size}
           className="size-full object-contain"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { fetchTicketByReference } from "@/lib/crowdpass";
 import { TicketQr } from "./TicketQr";
 import { TicketActions } from "./TicketActions";
@@ -71,6 +72,7 @@ export interface TicketCredentialProps {
 
 export function TicketCredential(props: TicketCredentialProps) {
   const { reference, initialToken, isFree } = props;
+  const router = useRouter();
 
   const [token, setToken] = useState<string | null>(initialToken);
   const [stalled, setStalled] = useState(false);
@@ -85,6 +87,9 @@ export function TicketCredential(props: TicketCredentialProps) {
       const fresh = await fetchTicketByReference(reference);
       if (fresh.qrCode) {
         setToken(fresh.qrCode);
+        // The mint landed: re-render the server parts of the page too, so the
+        // NFT row and the on-chain links (#31) appear without a second poll.
+        router.refresh();
         return fresh.qrCode;
       }
       return null;
@@ -94,7 +99,7 @@ export function TicketCredential(props: TicketCredentialProps) {
     } finally {
       setChecking(false);
     }
-  }, [reference]);
+  }, [reference, router]);
 
   useEffect(() => {
     if (token || stalled || isFree) return;

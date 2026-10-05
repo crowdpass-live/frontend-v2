@@ -4,7 +4,7 @@ import { Container } from "@/components/ui";
 /** Mirrors the page: heading, then the account or connect card. */
 export default function PayoutAccountLoading() {
   return (
-    <Container className="flex flex-col gap-6 py-10">
+    <Container size="page" className="flex flex-col gap-6 py-10 [&>*]:max-w-2xl">
       <span className="sr-only" role="status">Loading your payout account</span>
       <div className="flex flex-col gap-2">
         <Skeleton className="h-4 w-24" />
