@@ -7,6 +7,7 @@ import { claimEntriesPath } from "./claim-list";
 import { apiFetch } from "./api";
 import type {
   ApiAttendees,
+  ApiBeneficiaries,
   ApiBank,
   ApiBankHistory,
   ApiClaimList,
@@ -349,6 +350,17 @@ export function fetchClaimList(eventId: string, ticketTypeId: string) {
 export function fetchTicketAdmins(eventId: string) {
   return serverFetch<ApiTicketAdmin[]>(
     `/organizer/events/${encodeURIComponent(eventId)}/ticket-admins`,
+    { timeout: 45_000 },
+  );
+}
+
+/**
+ * `GET /organizer/events/:id/beneficiaries` — revenue partners (#43).
+ * `shareBps` is basis points of the organizer's cut, not of gross.
+ */
+export function fetchBeneficiaries(eventId: string) {
+  return serverFetch<ApiBeneficiaries>(
+    `/organizer/events/${encodeURIComponent(eventId)}/beneficiaries`,
     { timeout: 45_000 },
   );
 }

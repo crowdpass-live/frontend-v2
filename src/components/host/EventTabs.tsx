@@ -21,6 +21,7 @@ export function EventTabs({ eventId }: { eventId: string }) {
     { href: base, label: "Overview" },
     { href: `${base}/attendees`, label: "Attendees" },
     { href: `${base}/members`, label: "Member lists" },
+    { href: `${base}/revenue-sharing`, label: "Revenue sharing" },
     { href: `${base}/team`, label: "Check-in team" },
     // Opens the door console (its own shell) — an organizer may always scan
     // their own event, no grant needed.
