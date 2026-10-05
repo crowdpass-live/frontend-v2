@@ -7,6 +7,8 @@ import { claimEntriesPath } from "./claim-list";
 import { apiFetch } from "./api";
 import type {
   ApiAttendees,
+  ApiBank,
+  ApiBankHistory,
   ApiClaimList,
   ApiEvent,
   ApiTicketType,
@@ -177,6 +179,18 @@ export function fetchPayouts(page = 1) {
  */
 export function fetchKycStatus() {
   return serverFetch<ApiKycStatus>("/organizer/kyc", { timeout: 45_000 });
+}
+
+/** `GET /organizer/banks` — Paystack's live list; callers fall back to NG_BANKS. */
+export function fetchBanks() {
+  return serverFetch<ApiBank[]>("/organizer/banks", { timeout: 30_000 });
+}
+
+/** `GET /organizer/bank-details/history` — newest first. */
+export function fetchBankHistory(limit = 10) {
+  return serverFetch<ApiBankHistory>(`/organizer/bank-details/history?limit=${limit}`, {
+    timeout: 30_000,
+  });
 }
 
 /**

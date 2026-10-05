@@ -762,15 +762,19 @@ function Step({
   );
 }
 
-/** The bank step isn't on the web yet (#35); say where it is. */
+/** The step after identity. */
 function NextStepBank() {
   return (
-    <div className="w-full rounded-card border border-border bg-surface px-4 py-3 text-left">
-      <p className="text-body font-bold text-text">Next: connect a bank account</p>
-      <p className="text-label text-text-dim">
-        That&apos;s where card and transfer sales settle. For now, connect it in
-        the CrowdPass app: Profile → Set up payouts.
-      </p>
+    <div className="flex w-full flex-col gap-3 rounded-card border border-border bg-surface px-4 py-4 text-left">
+      <div>
+        <p className="text-body font-bold text-text">Next: connect a bank account</p>
+        <p className="text-label text-text-dim">
+          That&apos;s where card and transfer sales settle. It takes a minute.
+        </p>
+      </div>
+      <ButtonLink href="/host/payout-account" size="sm" className="w-full sm:w-fit">
+        Connect a bank
+      </ButtonLink>
     </div>
   );
 }

@@ -34,9 +34,9 @@ export function PayoutSetupCard({ setup }: { setup: PayoutSetup }) {
       key: "bank",
       state: setup.bank,
       title: "Connect a bank account",
-      body: "Where card and transfer sales settle. In the CrowdPass app for now.",
-      href: null,
-      cta: null,
+      body: "Where card and transfer sales settle. Bank code and account number — we check the name.",
+      href: "/host/payout-account",
+      cta: "Connect a bank",
     },
   ] as const;
 
@@ -90,7 +90,7 @@ export function PayoutSetupCard({ setup }: { setup: PayoutSetup }) {
                   </p>
                   {s.state !== "done" ? <p className="text-label text-text-dim">{s.body}</p> : null}
                 </div>
-                {active && s.href ? (
+                {active ? (
                   <ButtonLink href={s.href} size="sm" className="w-full sm:w-fit">
                     {s.cta}
                   </ButtonLink>
