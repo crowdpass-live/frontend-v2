@@ -9,9 +9,11 @@ import {
   isEventStatus,
 } from "@/lib/organizer";
 import { count, ngn, ngnCompact } from "@/lib/metric-format";
+import { payoutSetup, type PayoutSetup } from "@/lib/payout-setup";
 import { Mascot } from "@/components/Mascot";
 import { Panel, StatTile } from "@/components/StatTile";
 import { OrganizerEventCard } from "@/components/host/OrganizerEventCard";
+import { PayoutSetupCard } from "@/components/host/PayoutSetupCard";
 import { Pager } from "@/components/Pager";
 import { SoldByEventChart } from "@/components/host/SoldByEventChart";
 import { ButtonLink, Container, cx } from "@/components/ui";
@@ -69,8 +71,11 @@ export default async function HostDashboardPage({
 
   const { summary } = overview;
   const greeting = user.firstName ? `Welcome back, ${user.firstName}.` : "Welcome back.";
+  // Until card and transfer are open; an ADMIN has no profile and never sees it.
+  const setup = user.organizerProfile ? payoutSetup(user) : null;
+  const setupCard = setup && !setup.complete ? <PayoutSetupCard setup={setup} /> : null;
 
-  if (summary.totalEvents === 0) return <NoEvents greeting={greeting} />;
+  if (summary.totalEvents === 0) return <NoEvents greeting={greeting} setup={setup} />;
 
   const chartRows = [...overview.events]
     .sort((a, b) => b.stats.ticketsSold - a.stats.ticketsSold)
@@ -95,6 +100,8 @@ export default async function HostDashboardPage({
           How your events are selling, across everything you host.
         </p>
       </header>
+
+      {setupCard}
 
       <section aria-label="Summary" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatTile
@@ -182,16 +189,19 @@ export default async function HostDashboardPage({
   );
 }
 
-function NoEvents({ greeting }: { greeting: string }) {
+function NoEvents({ greeting, setup }: { greeting: string; setup: PayoutSetup | null }) {
   return (
-    <Container className="flex flex-col items-center gap-5 py-20 text-center">
-      <Mascot pose="lets-go" height={130} />
-      <h1 className="text-title font-bold text-text">{greeting}</h1>
-      <p className="text-body text-text-dim">
-        You haven&apos;t created an event yet. Create one in the CrowdPass app
-        and it shows up here — sales, check-ins and revenue, on a bigger screen.
-      </p>
-      <ButtonLink href="/" variant="secondary" className="w-full sm:w-auto">
+    <Container className="flex flex-col gap-8 py-12">
+      <div className="flex flex-col items-center gap-5 text-center">
+        <Mascot pose="lets-go" height={130} />
+        <h1 className="text-title font-bold text-text">{greeting}</h1>
+        <p className="text-body text-text-dim">
+          You haven&apos;t created an event yet. Create one in the CrowdPass app
+          and it shows up here — sales, check-ins and revenue, on a bigger screen.
+        </p>
+      </div>
+      {setup && !setup.complete ? <PayoutSetupCard setup={setup} /> : null}
+      <ButtonLink href="/" variant="secondary" className="w-full sm:w-auto sm:self-center">
         Browse events
       </ButtonLink>
     </Container>

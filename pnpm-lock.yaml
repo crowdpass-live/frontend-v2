@@ -11,6 +11,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.9.1
         version: 5.9.1(react-hook-form@7.86.0(react@19.2.8))(zod@4.4.3)
+      '@qore-id/web-sdk':
+        specifier: 2.0.3
+        version: 2.0.3
       '@tanstack/react-query':
         specifier: ^5.102.5
         version: 5.102.5(react@19.2.8)
@@ -549,6 +552,9 @@ packages:
   '@nolyfill/is-core-module@1.0.39':
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
+
+  '@qore-id/web-sdk@2.0.3':
+    resolution: {integrity: sha512-p/ra0brAoXtm8aivP88pnjdEhqNdymA9JcVXS9sVn5GNL56jk7iBcMFPEC9XH+KwHSY205Rt0kMN3Kn8oHoe/A==}
 
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
@@ -2618,6 +2624,8 @@ snapshots:
       fastq: 1.20.1
 
   '@nolyfill/is-core-module@1.0.39': {}
+
+  '@qore-id/web-sdk@2.0.3': {}
 
   '@rtsao/scc@1.1.0': {}
 

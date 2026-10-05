@@ -12,6 +12,7 @@ import type {
   ApiTicketType,
   ApiBeneficiaryEarnings,
   ApiEventAnalytics,
+  ApiKycStatus,
   ApiOnchainBalance,
   ApiOnchainCheckins,
   ApiOrganizerEvents,
@@ -168,6 +169,14 @@ export function fetchPayouts(page = 1) {
   return serverFetch<ApiPayouts>(`/organizer/payouts?${params}`, {
     timeout: 45_000,
   });
+}
+
+/**
+ * `GET /organizer/kyc` — `@Roles(ORGANIZER)`, so an ADMIN gets 403 here too.
+ * The verdict of any check is read from this, never from a client callback.
+ */
+export function fetchKycStatus() {
+  return serverFetch<ApiKycStatus>("/organizer/kyc", { timeout: 45_000 });
 }
 
 /**
