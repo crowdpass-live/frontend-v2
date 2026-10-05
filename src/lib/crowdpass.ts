@@ -155,7 +155,10 @@ export interface PurchasePayload {
 /**
  * `POST /tickets/purchase` — the guest purchase endpoint.
  *
- * Public (`@Public() + OptionalJwtAuthGuard`): no account, no token. The
+ * Public (`@Public() + OptionalJwtAuthGuard`): no account, no token. With
+ * `auth` (a signed-in buyer, #28) the bearer rides along through
+ * `/api/backend`, binding the ticket to that account so it appears in My
+ * tickets instead of on an account upserted from the email. Without it, the
  * backend upserts a User row by email so the mint worker has a wallet to mint
  * into, which is why `buyerEmail` is the identity here and has to be right —
  * it is also where the ticket is delivered.
@@ -178,13 +181,27 @@ export interface PurchasePayload {
  */
 export async function purchaseTicket(
   payload: PurchasePayload,
+  { auth = false }: { auth?: boolean } = {},
 ): Promise<ApiPurchaseResult> {
-  const post = (body: PurchasePayload) =>
-    apiFetch<ApiPurchaseResult>("/tickets/purchase", {
-      method: "POST",
-      body,
-      timeout: 60_000,
-    });
+  const post = async (body: PurchasePayload) => {
+    try {
+      return await apiFetch<ApiPurchaseResult>("/tickets/purchase", {
+        method: "POST",
+        body,
+        timeout: 60_000,
+        auth,
+      });
+    } catch (err) {
+      // Signed in, the call goes through `/api/backend`, which answers its
+      // own upstream timeout with a 504. That is the same unknown outcome as
+      // a browser timeout — the transaction may exist — so it must take the
+      // same "go and check" path (status 0), never invite a second attempt.
+      if (auth && err instanceof ApiError && err.status === 504) {
+        throw new ApiError(0, err.message, err.body);
+      }
+      throw err;
+    }
+  };
 
   try {
     return await post(payload);

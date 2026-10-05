@@ -9,7 +9,8 @@ import { TicketCredential } from "@/components/TicketCredential";
 import { PendingTicket } from "@/components/PendingTicket";
 import { Celebration } from "@/components/Celebration";
 import { Mascot } from "@/components/Mascot";
-import type { ApiTicket, TicketStatus } from "@/types/api";
+import { TICKET_STATUS as STATUS } from "@/lib/ticket-status";
+import type { ApiTicket } from "@/types/api";
 
 type Params = { reference: string };
 type Search = { celebrate?: string };
@@ -20,42 +21,6 @@ export const metadata: Metadata = {
   // Keep the page out of search indexes and out of referrer headers.
   robots: { index: false, follow: false, nocache: true },
   referrer: "no-referrer",
-};
-
-const STATUS: Record<
-  TicketStatus,
-  { label: string; tone: "ok" | "warn" | "info" | "danger" | "neutral"; note: string }
-> = {
-  CONFIRMED: {
-    label: "Valid",
-    tone: "ok",
-    // Only used by the non-CONFIRMED branch below; TicketCredential owns the
-    // confirmed case, including the wait before the QR is minted.
-    note: "Show this at the door.",
-  },
-  PENDING: {
-    // Not "Pending payment": a paid ticket stays PENDING until its mint lands,
-    // so most buyers see this badge after their payment has already cleared.
-    // PendingTicket owns the body copy for this case.
-    label: "Processing",
-    tone: "warn",
-    note: "This ticket is still being issued.",
-  },
-  USED: {
-    label: "Checked in",
-    tone: "info",
-    note: "This ticket has already been scanned at the door.",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    tone: "danger",
-    note: "This ticket was cancelled and cannot be used for entry.",
-  },
-  REFUNDED: {
-    label: "Refunded",
-    tone: "danger",
-    note: "This ticket was refunded and cannot be used for entry.",
-  },
 };
 
 export default async function TicketPage({

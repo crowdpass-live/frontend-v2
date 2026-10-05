@@ -7,10 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { ApiError } from "@/lib/api";
-import { fetchPaymentMethods, purchaseTicket } from "@/lib/crowdpass";
+import { fetchPaymentMethods, purchaseTicket, type PurchasePayload } from "@/lib/crowdpass";
 import { money, normalizePhone } from "@/lib/format";
 import { rememberPendingPurchase } from "@/lib/pending";
 import { CardIcon, CoinIcon } from "@/components/icons";
+import { Stepper } from "@/components/Stepper";
 import { Button, Card, ErrorNote, Field, SectionTitle, Container, Spinner, cx } from "@/components/ui";
 import type { ApiEvent, ApiTicketType, PaymentProvider } from "@/types/api";
 
@@ -153,7 +154,20 @@ function MethodOption({
   );
 }
 
-export function CheckoutForm({ event }: { event: ApiEvent }) {
+/** The signed-in buyer, for prefill (#28). Null is a guest. */
+export interface CheckoutBuyer {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+export function CheckoutForm({
+  event,
+  buyer = null,
+}: {
+  event: ApiEvent;
+  buyer?: CheckoutBuyer | null;
+}) {
   const router = useRouter();
   const currency = event.currency || "NGN";
   // Claim-only tiers are never buyable through this form — the backend
@@ -203,14 +217,34 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     mode: "onBlur",
-    defaultValues: { buyerName: "", buyerEmail: "", buyerPhone: "" },
+    defaultValues: {
+      buyerName: buyer?.name ?? "",
+      buyerEmail: buyer?.email ?? "",
+      buyerPhone: buyer?.phone ?? "",
+    },
   });
+
+  // Signed in with complete, valid details: show them as one summary line
+  // with an Edit button instead of three fields to retype. Editable, not
+  // hidden — they may be buying for someone else. Anything missing or
+  // invalid (no real name yet, a phone the DTO would reject) opens the
+  // fields from the start.
+  const [editingBuyer, setEditingBuyer] = useState(
+    () =>
+      !buyer ||
+      !schema.safeParse({
+        buyerName: buyer.name,
+        buyerEmail: buyer.email,
+        buyerPhone: buyer.phone,
+      }).success,
+  );
 
   const unitPrice = Number(tier?.price ?? 0);
   const total = unitPrice * quantity;
 
   const purchase = useMutation({
-    mutationFn: purchaseTicket,
+    mutationFn: (payload: PurchasePayload) =>
+      purchaseTicket(payload, { auth: !!buyer }),
     onSuccess: (result) => {
       // Remember the reference before navigating away. The gateway redirect
       // comes back with a reference in the query string, but a buyer who
@@ -342,32 +376,12 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
             </p>
           ) : null}
         </div>
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            aria-label="Decrease quantity"
-            disabled={quantity <= 1}
-            onClick={() => setRequestedQuantity(Math.max(1, quantity - 1))}
-            className="grid size-11 place-items-center rounded-full border border-border-strong text-text transition-colors hover:bg-surface disabled:opacity-35"
-          >
-            <span aria-hidden className="text-xl leading-none">−</span>
-          </button>
-          <span
-            aria-live="polite"
-            className="min-w-8 text-center text-title font-bold text-text"
-          >
-            {quantity}
-          </span>
-          <button
-            type="button"
-            aria-label="Increase quantity"
-            disabled={quantity >= maxQuantity}
-            onClick={() => setRequestedQuantity(Math.min(maxQuantity, quantity + 1))}
-            className="grid size-11 place-items-center rounded-full bg-accent text-ink transition-colors hover:bg-accent-hi disabled:opacity-35 disabled:hover:bg-accent"
-          >
-            <span aria-hidden className="text-xl leading-none">+</span>
-          </button>
-        </div>
+        <Stepper
+          label="quantity"
+          value={quantity}
+          max={maxQuantity}
+          onChange={setRequestedQuantity}
+        />
       </section>
 
       {/* Buyer — the piece the mobile design has no equivalent for, because
@@ -376,35 +390,63 @@ export function CheckoutForm({ event }: { event: ApiEvent }) {
         <div>
           <SectionTitle>Your details</SectionTitle>
           <p className="mt-1 text-helper text-text-faint">
-            No account needed. Your ticket is emailed to you.
+            {buyer
+              ? "Your ticket goes to My tickets and is emailed to you."
+              : "No account needed. Your ticket is emailed to you."}
           </p>
         </div>
-        <Field
-          label="Full name"
-          autoComplete="name"
-          placeholder="Ada Okeke"
-          error={form.formState.errors.buyerName?.message}
-          {...form.register("buyerName")}
-        />
-        <Field
-          label="Email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          placeholder="ada@example.com"
-          error={form.formState.errors.buyerEmail?.message}
-          {...form.register("buyerEmail")}
-        />
-        <Field
-          label="Phone"
-          hint="optional"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="0801 234 5678"
-          error={form.formState.errors.buyerPhone?.message}
-          {...form.register("buyerPhone")}
-        />
+        {editingBuyer ? (
+          <>
+            <Field
+              label="Full name"
+              autoComplete="name"
+              placeholder="Ada Okeke"
+              error={form.formState.errors.buyerName?.message}
+              {...form.register("buyerName")}
+            />
+            <Field
+              label="Email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="ada@example.com"
+              error={form.formState.errors.buyerEmail?.message}
+              {...form.register("buyerEmail")}
+            />
+            <Field
+              label="Phone"
+              hint="optional"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="0801 234 5678"
+              error={form.formState.errors.buyerPhone?.message}
+              {...form.register("buyerPhone")}
+            />
+          </>
+        ) : (
+          <Card className="flex items-center justify-between gap-4 p-4">
+            <div className="min-w-0">
+              <p className="truncate text-body font-semibold text-text">
+                {form.getValues("buyerName")}
+              </p>
+              <p className="truncate text-helper text-text-dim">
+                {[form.getValues("buyerEmail"), form.getValues("buyerPhone")]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-auto shrink-0"
+              onClick={() => setEditingBuyer(true)}
+            >
+              Edit
+            </Button>
+          </Card>
+        )}
       </section>
 
       {/* Payment */}
