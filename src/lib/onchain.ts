@@ -23,6 +23,8 @@ export interface ChainInfo {
   /** The USDC ERC-20 contract. 6 decimals on all three. */
   usdc: string;
   testnet: boolean;
+  /** How the explorer addresses one NFT — the two families differ. */
+  explorerKind: "etherscan" | "blockscout";
 }
 
 /**
@@ -37,6 +39,7 @@ export const CHAINS: Record<string, ChainInfo> = {
     rpc: "https://mainnet.base.org",
     usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     testnet: false,
+    explorerKind: "etherscan",
   },
   "BASE-SEPOLIA": {
     id: "BASE-SEPOLIA",
@@ -45,6 +48,7 @@ export const CHAINS: Record<string, ChainInfo> = {
     rpc: "https://sepolia.base.org",
     usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     testnet: true,
+    explorerKind: "etherscan",
   },
   "ARC-TESTNET": {
     id: "ARC-TESTNET",
@@ -53,6 +57,7 @@ export const CHAINS: Record<string, ChainInfo> = {
     rpc: "https://rpc.testnet.arc.network",
     usdc: "0x3600000000000000000000000000000000000000",
     testnet: true,
+    explorerKind: "blockscout",
   },
 };
 
@@ -143,4 +148,63 @@ export function unitsToDecimal(units: string, decimals: number): string {
 export function formatUsdc(decimal: string): string {
   const [whole, frac = ""] = decimal.split(".");
   return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${frac.padEnd(2, "0")}`;
+}
+
+/**
+ * Where a minted ticket lives on-chain, as explorer links (#31). Ports the
+ * provenance links from `TicketScreen.js`.
+ *
+ * Built only from what is certain: the ticket's own on-chain fields when the
+ * API sends them, else the ticket contract configured for the chain
+ * (`TICKET_CONTRACT_<CHAIN>`, server-side). A link that can't be built is
+ * left out, never guessed. `tokenId` stays a string — the backend serialises
+ * BigInt that way, and `Number()` would corrupt a large id.
+ */
+export interface TicketOnchainLinks {
+  chainName: string;
+  nft?: string;
+  contract?: string;
+  wallet?: string;
+  mintTx?: string;
+}
+
+const HASH = /^0x[0-9a-fA-F]{64}$/;
+
+export function ticketOnchain(
+  chain: string | null | undefined,
+  ticket: {
+    tokenId: string | number | null;
+    contractAddress?: string | null;
+    ownerAddress?: string | null;
+    walletAddress?: string | null;
+    mintTxHash?: string | null;
+    txHash?: string | null;
+  },
+): TicketOnchainLinks | null {
+  const info = chainInfo(chain);
+  const tokenId = ticket.tokenId == null ? "" : String(ticket.tokenId);
+  if (!info || !/^\d+$/.test(tokenId)) return null;
+
+  const configured = process.env[`TICKET_CONTRACT_${info.id.replace(/-/g, "_")}`];
+  const contract = [ticket.contractAddress, configured].find(
+    (a): a is string => typeof a === "string" && ADDRESS.test(a),
+  );
+  const owner = [ticket.ownerAddress, ticket.walletAddress].find(
+    (a): a is string => typeof a === "string" && ADDRESS.test(a),
+  );
+  const tx = [ticket.mintTxHash, ticket.txHash].find(
+    (h): h is string => typeof h === "string" && HASH.test(h),
+  );
+
+  const links: TicketOnchainLinks = { chainName: info.name };
+  if (contract) {
+    links.contract = `${info.explorer}/address/${contract}`;
+    links.nft =
+      info.explorerKind === "blockscout"
+        ? `${info.explorer}/token/${contract}/instance/${tokenId}`
+        : `${info.explorer}/nft/${contract}/${tokenId}`;
+  }
+  if (owner) links.wallet = `${info.explorer}/address/${owner}`;
+  if (tx) links.mintTx = `${info.explorer}/tx/${tx}`;
+  return links;
 }

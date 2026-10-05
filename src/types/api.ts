@@ -234,6 +234,15 @@ export interface ApiTicket {
   status: TicketStatus;
   qrCode: string | null;
   tokenId: string | number | null;
+  /**
+   * On-chain provenance, when the API includes it (#31). All optional: read
+   * through `ticketOnchain()`, which only links what it can verify.
+   */
+  contractAddress?: string | null;
+  ownerAddress?: string | null;
+  walletAddress?: string | null;
+  mintTxHash?: string | null;
+  txHash?: string | null;
   checkedInAt: string | null;
   buyerName: string | null;
   buyerEmail?: string | null;
@@ -253,6 +262,8 @@ export interface ApiTicket {
     startTime: string;
     endTime: string | null;
     coverImage: string | null;
+    /** Not always present on this payload; the event detail has it. */
+    chain?: string | null;
     organizer: { firstName: string | null; lastName: string | null } | null;
   };
 }
