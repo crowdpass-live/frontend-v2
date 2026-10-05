@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ApiError } from "@/lib/api";
-import { fetchTicketByReference } from "@/lib/crowdpass";
+import { fetchEventBySlug, fetchTicketByReference } from "@/lib/crowdpass";
+import { ticketOnchain } from "@/lib/onchain";
 import { formatDate, formatDateTimeLong, formatTime, money } from "@/lib/format";
-import { CalendarIcon, PinIcon } from "@/components/icons";
+import { CalendarIcon, ExternalLinkIcon, PinIcon } from "@/components/icons";
 import { Badge, ButtonLink, Card, Container } from "@/components/ui";
 import { TicketCredential } from "@/components/TicketCredential";
 import { PendingTicket } from "@/components/PendingTicket";
@@ -52,6 +53,18 @@ export default async function TicketPage({
   // payment, cancelled, refunded, already used) gets a plain status note;
   // rendering a QR for a refunded ticket invites an argument at the door.
   const isConfirmed = ticket.status === "CONFIRMED";
+
+  // On-chain provenance (#31) exists only once the mint has landed, so it is
+  // keyed off `tokenId` — the same signal TicketCredential waits on, which
+  // refreshes this page when it arrives. The chain comes from the event
+  // detail when the ticket payload doesn't carry it; failing that, no links.
+  const onchain = ticket.tokenId
+    ? ticketOnchain(
+        ticket.event.chain ??
+          (await fetchEventBySlug(ticket.event.slug).catch(() => null))?.chain,
+        ticket,
+      )
+    : null;
 
   // Absolute, because it is handed to WhatsApp and the native share sheet.
   const siteUrl = (
@@ -141,6 +154,36 @@ export default async function TicketPage({
               <Row label="NFT token" value={`#${ticket.tokenId}`} />
             ) : null}
           </dl>
+
+          {onchain && (onchain.nft || onchain.contract || onchain.wallet || onchain.mintTx) ? (
+            <div className="flex flex-col gap-3 border-t border-border p-5">
+              <p className="text-label text-text-faint">On-chain · {onchain.chainName}</p>
+              <ul className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["NFT", onchain.nft],
+                    ["Contract", onchain.contract],
+                    ["Owner wallet", onchain.wallet],
+                    ["Mint transaction", onchain.mintTx],
+                  ] as const
+                ).map(([label, href]) =>
+                  href ? (
+                    <li key={label}>
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-full bg-surface-strong px-3 text-helper font-medium text-text-dim transition-colors hover:text-text"
+                      >
+                        {label}
+                        <ExternalLinkIcon width={14} height={14} />
+                      </a>
+                    </li>
+                  ) : null,
+                )}
+              </ul>
+            </div>
+          ) : null}
         </Card>
 
         <ButtonLink
