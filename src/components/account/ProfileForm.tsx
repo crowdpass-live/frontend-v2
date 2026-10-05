@@ -7,7 +7,7 @@ import { normalizePhone } from "@/lib/format";
 import { isProvisionalName } from "@/lib/names";
 import { TextField } from "@/components/TextField";
 import { LockIcon, MailIcon, PersonIcon, PhoneIcon } from "@/components/icons";
-import { Button, Spinner } from "@/components/ui";
+import { Button, ButtonLink, Spinner } from "@/components/ui";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NAME_MIN = 2;
@@ -26,10 +26,15 @@ const NAME_MIN = 2;
  *
  * Sends only fields that changed — `forbidNonWhitelisted` rejects strays,
  * and re-sending a locked value is pointless.
+ *
+ * `next` is where the host came from (identity verification sends people
+ * here to fix their name): a save goes straight back there.
  */
 export function ProfileForm({
   user,
+  next,
 }: {
+  next?: string;
   user: {
     firstName: string;
     lastName: string;
@@ -74,6 +79,11 @@ export function ProfileForm({
     setError(null);
     try {
       await apiFetch("/auth/me", { method: "PATCH", auth: true, body: changes });
+      if (next) {
+        setSaved("Saved. Taking you back…");
+        router.push(next);
+        return;
+      }
       setSaved("Saved.");
       setEmail("");
       setPhone("");
@@ -178,10 +188,17 @@ export function ProfileForm({
       {error ? <p role="alert" className="text-label text-danger">{error}</p> : null}
       {saved ? <p role="status" className="text-label text-ok">{saved}</p> : null}
 
-      <Button type="submit" disabled={busy || !dirty} className="w-full sm:w-fit">
-        {busy ? <Spinner /> : null}
-        Save changes
-      </Button>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button type="submit" disabled={busy || !dirty} className="w-full sm:w-fit">
+          {busy ? <Spinner /> : null}
+          {next ? "Save and continue" : "Save changes"}
+        </Button>
+        {next && !dirty && !placeholder ? (
+          <ButtonLink href={next} variant="secondary" className="w-full sm:w-fit">
+            Continue
+          </ButtonLink>
+        ) : null}
+      </div>
     </form>
   );
 }

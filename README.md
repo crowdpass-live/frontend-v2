@@ -1,8 +1,11 @@
 # CrowdPass Web
 
-The buyer-facing web surface for CrowdPass. Scope is the guest purchase path:
-a shared link opens an event, and someone with no account walks out with a
-ticket.
+The web surface for CrowdPass. It began as the guest purchase path — a shared
+link opens an event, and someone with no account walks out with a ticket — and
+that path is still the shopfront. It is now growing to full parity with the
+mobile app: accounts, organizers and the door. See the web-parity epic (#63)
+and its phase epics, and read [CONTRIBUTING.md](CONTRIBUTING.md) before picking
+up an issue.
 
 ```
 /                         discover            search · category · location
@@ -12,7 +15,9 @@ ticket.
 /tickets/[reference]      the ticket + QR     public, no account needed
 ```
 
-Auth and the organizer dashboard are **not** in this build.
+The routes above are the guest path. Accounts (`/login`, `/signup`,
+`/account`), the organizer area (`/host`) and the door (`/door`) are being
+built phase by phase; CONTRIBUTING.md maps every route group.
 
 ## Discover (`/`)
 

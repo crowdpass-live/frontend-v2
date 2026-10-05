@@ -31,6 +31,7 @@ export async function AccountMenu() {
         email=""
         links={[
           { href: "/host", label: "Host dashboard" },
+          { href: "/account/tickets", label: "My tickets" },
           { href: "/account", label: "Account" },
         ]}
       />
@@ -44,6 +45,7 @@ export async function AccountMenu() {
   // Organizers may scan their own events without a grant, so they always
   // have a door; delegates only when a grant exists.
   if (user.isOrganizer || doors?.length) links.push({ href: "/door", label: "At the door" });
+  links.push({ href: "/account/tickets", label: "My tickets" });
   links.push({ href: "/account", label: "Account" });
   if (!user.isOrganizer) links.push({ href: "/host", label: "Host an event" });
 
