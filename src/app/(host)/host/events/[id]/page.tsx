@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireUser } from "@/lib/session";
 import {
   fetchEventAnalytics,
+  fetchEventControls,
   fetchOnchainBalance,
   fetchOnchainCheckins,
   settle,
@@ -9,6 +10,7 @@ import {
 import { count, ngn, ngnCompact, NO_VALUE, titleCase } from "@/lib/metric-format";
 import { DailyRevenueChart } from "@/components/DailyRevenueChart";
 import { Panel, StatRow, StatTile } from "@/components/StatTile";
+import { CancelEvent } from "@/components/host/CancelEvent";
 import { TicketTypeTable } from "@/components/host/TicketTypeTable";
 
 export const metadata: Metadata = { title: "Event overview" };
@@ -43,10 +45,11 @@ export default async function HostEventOverviewPage({
 
   // The layout already resolved (and access-checked) the analytics; this is
   // the same cached promise. The chain reads are slower and may fail alone.
-  const [result, balance, checkins] = await Promise.all([
+  const [result, balance, checkins, controls] = await Promise.all([
     settle(fetchEventAnalytics(id)),
     settle(fetchOnchainBalance(id)),
     settle(fetchOnchainCheckins(id)),
+    settle(fetchEventControls(id)),
   ]);
   // The layout renders the 404 / not-yours state for a failed read.
   if (!result.ok) return null;
@@ -175,6 +178,15 @@ export default async function HostEventOverviewPage({
             </div>
           </Panel>
         </div>
+      ) : null}
+      {controls.ok && controls.value ? (
+        <CancelEvent
+          eventId={id}
+          eventName={analytics.event.name}
+          status={controls.value.status}
+          ticketsSold={controls.value.ticketsSold}
+          isRefundable={controls.value.isRefundable}
+        />
       ) : null}
     </div>
   );
