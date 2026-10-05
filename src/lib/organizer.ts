@@ -239,9 +239,10 @@ const OWN_EVENT_SCAN_PAGES = 10;
 /**
  * The organizer's own summary row for an event (slug and status), by id.
  * The analytics response carries neither, and ticket types are only
- * readable through the slug (published) or the drafts list.
+ * readable through the slug (published) or the drafts list. Deduplicated
+ * per request: the overview page asks for both controls and ticket types.
  */
-export async function findOwnEvent(eventId: string) {
+export const findOwnEvent = cache(async (eventId: string) => {
   for (let page = 1; page <= OWN_EVENT_SCAN_PAGES; page++) {
     const res = await fetchOrganizerEvents({ page, limit: ORGANIZER_EVENTS_MAX_LIMIT });
     const hit = res.events.find((e) => e.id === eventId);
@@ -249,7 +250,7 @@ export async function findOwnEvent(eventId: string) {
     if (page >= res.pagination.totalPages) break;
   }
   return null;
-}
+});
 
 /**
  * What the publish / cancel controls need about one of the caller's events:
