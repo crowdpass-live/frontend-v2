@@ -22,8 +22,13 @@ export interface PayoutSetup {
  * lane. Treating it as connected is how an event goes live unable to take
  * money — mobile's `isMockSubaccount()`.
  */
-function isRealSubaccount(code: string | null | undefined): boolean {
-  return !!code && !code.startsWith("DEV_");
+export function isMockSubaccount(code: string | null | undefined): boolean {
+  return !!code && code.startsWith("DEV_");
+}
+
+/** Mirrors `hasRealSubaccount()` in the backend's payments/constants.ts. */
+export function isRealSubaccount(code: string | null | undefined): boolean {
+  return !!code && !isMockSubaccount(code);
 }
 
 export function payoutSetup(user: SessionUser): PayoutSetup {
