@@ -45,15 +45,16 @@ export default async function DoorHomePage() {
   const doors = withWindows((await getDoors()) ?? []);
 
   return (
-    <Container className="flex flex-col gap-4 py-8 sm:py-10">
+    <Container size="page" className="flex flex-col gap-4 py-8 sm:py-10">
       <h1 className="text-title font-bold text-text">Your doors</h1>
-      <ul className="flex flex-col gap-3">
+      {/* grid-cols-1, not just md:/xl: — the implicit column stretches to a long name. */}
+      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {doors.map(({ door: d, window: w }) => {
           return (
-            <li key={d.eventId}>
+            <li key={d.eventId} className="flex min-w-0">
               <Link
                 href={`/door/${d.eventId}`}
-                className="flex min-h-16 flex-col gap-2 rounded-card border border-border bg-surface px-5 py-4 transition-colors hover:border-border-strong"
+                className="flex min-h-16 w-full flex-col gap-2 rounded-card border border-border bg-surface px-5 py-4 transition-colors hover:border-border-strong"
               >
                 <span className="flex items-start justify-between gap-3">
                   <span className="min-w-0 text-body font-bold text-text">{d.name}</span>

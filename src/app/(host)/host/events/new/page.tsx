@@ -23,7 +23,7 @@ export default async function NewEventPage() {
   const options = chains.ok ? chains.value : [];
 
   return (
-    <Container className="flex flex-col gap-6 py-8 sm:py-10">
+    <Container size="page" className="flex flex-col gap-6 py-8 sm:py-10">
       <header className="flex flex-col gap-2">
         <Link
           href="/host"

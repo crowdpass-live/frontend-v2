@@ -5,6 +5,8 @@ import { fetchBankHistory, fetchBanks, settle } from "@/lib/organizer";
 import { isRealSubaccount } from "@/lib/payout-setup";
 import { NG_BANKS } from "@/lib/banks";
 import { PayoutAccount } from "@/components/host/PayoutAccount";
+import { AsideCard, SplitPage } from "@/components/app/SplitPage";
+import { BankIcon } from "@/components/icons";
 import { Container } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Payout account" };
@@ -27,17 +29,47 @@ export default async function PayoutAccountPage() {
   ]);
 
   return (
-    <Container className="flex flex-col gap-6 py-10">
-      <header>
-        <Link href="/host" className="text-label text-text-dim hover:text-text">
-          ← Dashboard
-        </Link>
-        <h1 className="mt-2 text-title font-bold text-text">Payout account</h1>
-        <p className="mt-1 text-body text-text-dim">
-          The bank account your card and bank-transfer sales settle to. Your share
-          goes straight there — crypto sales stay in your CrowdPass wallet.
-        </p>
-      </header>
+    <SplitPage
+      header={
+        <header>
+          <Link href="/host" className="text-label text-text-dim hover:text-text">
+            ← Dashboard
+          </Link>
+          <h1 className="mt-2 text-title font-bold text-text">Payout account</h1>
+          <p className="mt-1 max-w-2xl text-body text-text-dim">
+            The bank account your card and bank-transfer sales settle to. Your share
+            goes straight there — crypto sales stay in your CrowdPass wallet.
+          </p>
+        </header>
+      }
+      aside={
+        <>
+          <AsideCard title="How payouts work" icon={<BankIcon width={16} height={16} />}>
+            <p>
+              When a buyer pays by card or transfer, your share is split off at the
+              payment provider and settles to this account — CrowdPass never holds it.
+            </p>
+            <p>
+              USDC sales are different: they sit in on-chain escrow and you withdraw
+              them from{" "}
+              <Link href="/host/payouts" className="font-bold text-accent hover:text-accent-hi">
+                Payouts
+              </Link>
+              .
+            </p>
+          </AsideCard>
+          <AsideCard title="Paystack or Monnify?">
+            <p>Both pay the same account. Paystack also takes USSD; connecting both gives buyers the most ways to pay.</p>
+          </AsideCard>
+          <AsideCard title="Changing banks">
+            <p>
+              You can switch accounts any time, except while a payout is processing.
+              We check the new account&apos;s name with the bank first.
+            </p>
+          </AsideCard>
+        </>
+      }
+    >
       <PayoutAccount
         profile={{
           kycStatus: p.kycStatus,
@@ -52,7 +84,7 @@ export default async function PayoutAccountPage() {
         banks={banks?.ok && banks.value.length ? banks.value : NG_BANKS}
         history={history?.ok ? history.value.data : []}
       />
-    </Container>
+    </SplitPage>
   );
 }
 

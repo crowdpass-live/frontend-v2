@@ -44,7 +44,7 @@ export default async function AccountPage({
       .toUpperCase() || (user.name[0] ?? "?").toUpperCase();
 
   return (
-    <Container className="flex flex-col gap-8 py-10">
+    <Container size="page" className="flex flex-col gap-8 py-10">
       <header className="flex items-center gap-4">
         <span
           aria-hidden
@@ -59,85 +59,92 @@ export default async function AccountPage({
           ) : null}
           {user.isOrganizer ? <Badge tone="accent" className="self-start">Host</Badge> : null}
         </div>
-        <ButtonLink href="#details" variant="secondary" size="sm" className="w-auto shrink-0">
+        {/* On a wide screen the details sit beside everything else. */}
+        <ButtonLink href="#details" variant="secondary" size="sm" className="w-auto shrink-0 lg:hidden">
           Edit
         </ButtonLink>
       </header>
 
-      <div className="grid grid-cols-3 divide-x divide-border rounded-card border border-border bg-surface py-4 text-center">
-        <Stat
-          label="Tickets"
-          value={ticketCount === null ? "—" : String(ticketCount)}
-          href="/account/tickets"
-        />
-        <Stat label="Wallets" value={String(user.wallets.length)} />
-        <Stat label="Member since" value={memberSince(user.createdAt)} />
-      </div>
+      {/* One column on a phone (the details last, as before); on a wide
+          screen the details get their own column, sticky beside the rest. */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start xl:gap-12">
+        <div className="flex min-w-0 flex-col gap-8">
+          <div className="grid grid-cols-3 divide-x divide-border rounded-card border border-border bg-surface py-4 text-center">
+            <Stat
+              label="Tickets"
+              value={ticketCount === null ? "—" : String(ticketCount)}
+              href="/account/tickets"
+            />
+            <Stat label="Wallets" value={String(user.wallets.length)} />
+            <Stat label="Member since" value={memberSince(user.createdAt)} />
+          </div>
 
-      <section aria-labelledby="wallet-heading" className="flex flex-col gap-3">
-        <h2 id="wallet-heading" className="text-section font-bold text-text">Wallet</h2>
-        {user.wallets.length ? (
-          <Suspense fallback={<Skeleton className="h-[218px] rounded-card" />}>
-            <Wallets wallets={user.wallets} />
-          </Suspense>
-        ) : (
-          <p className="rounded-card border border-border bg-surface p-5 text-body text-text-dim">
-            Your CrowdPass wallet is created with your account. It hasn&apos;t
-            appeared yet — check back in a minute.
-          </p>
-        )}
-        <p className="text-helper text-text-faint">
-          A custodial USDC wallet CrowdPass holds for you. Crypto ticket
-          purchases are paid from it first.
-        </p>
-      </section>
+          <section aria-labelledby="wallet-heading" className="flex flex-col gap-3">
+            <h2 id="wallet-heading" className="text-section font-bold text-text">Wallet</h2>
+            {user.wallets.length ? (
+              <Suspense fallback={<Skeleton className="h-[218px] rounded-card" />}>
+                <Wallets wallets={user.wallets} />
+              </Suspense>
+            ) : (
+              <p className="rounded-card border border-border bg-surface p-5 text-body text-text-dim">
+                Your CrowdPass wallet is created with your account. It hasn&apos;t
+                appeared yet — check back in a minute.
+              </p>
+            )}
+            <p className="text-helper text-text-faint">
+              A custodial USDC wallet CrowdPass holds for you. Crypto ticket
+              purchases are paid from it first.
+            </p>
+          </section>
 
-      <Link
-        href="/account/tickets"
-        className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-strong"
-      >
-        <span className="text-body font-medium text-text">My tickets</span>
-        <ChevronRightIcon className="text-text-faint" />
-      </Link>
-
-      <section aria-labelledby="hosting-heading" className="flex flex-col gap-3">
-        <h2 id="hosting-heading" className="text-section font-bold text-text">Hosting</h2>
-        <div className="flex flex-col gap-4 rounded-card border border-accent-tint-border bg-linear-to-br from-accent/45 to-accent-tint p-5">
-          <p className="text-helper font-medium uppercase tracking-wide text-text-dim">
-            {user.isOrganizer ? "Host mode" : "Hosting"}
-          </p>
-          <p className="text-section font-bold text-text">
-            {user.isOrganizer ? "Manage your events and sales" : "Sell tickets to your own events"}
-          </p>
-          {/* White on the orange gradient, as in the design — its own classes
-              rather than a Button variant with overridden colours. */}
           <Link
-            href="/host"
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-text px-5 text-label font-bold text-ink transition-colors hover:bg-text-dim sm:w-auto sm:self-start"
+            href="/account/tickets"
+            className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-strong"
           >
-            {user.isOrganizer ? "Open dashboard" : "Become a host"}
-            <ArrowRightIcon width={16} height={16} />
+            <span className="text-body font-medium text-text">My tickets</span>
+            <ChevronRightIcon className="text-text-faint" />
           </Link>
-        </div>
-      </section>
 
-      <section
-        id="details"
-        aria-labelledby="profile-heading"
-        className="flex scroll-mt-24 flex-col gap-4 rounded-card border border-border bg-surface p-5"
-      >
-        <h2 id="profile-heading" className="text-section font-bold text-text">Your details</h2>
-        <ProfileForm
-          next={next}
-          user={{
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email,
-            phone: user.phone,
-            kycVerified: user.organizerProfile?.kycStatus === "VERIFIED",
-          }}
-        />
-      </section>
+          <section aria-labelledby="hosting-heading" className="flex flex-col gap-3">
+            <h2 id="hosting-heading" className="text-section font-bold text-text">Hosting</h2>
+            <div className="flex flex-col gap-4 rounded-card border border-accent-tint-border bg-linear-to-br from-accent/45 to-accent-tint p-5">
+              <p className="text-helper font-medium uppercase tracking-wide text-text-dim">
+                {user.isOrganizer ? "Host mode" : "Hosting"}
+              </p>
+              <p className="text-section font-bold text-text">
+                {user.isOrganizer ? "Manage your events and sales" : "Sell tickets to your own events"}
+              </p>
+              {/* White on the orange gradient, as in the design — its own classes
+                  rather than a Button variant with overridden colours. */}
+              <Link
+                href="/host"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-text px-5 text-label font-bold text-ink transition-colors hover:bg-text-dim sm:w-auto sm:self-start"
+              >
+                {user.isOrganizer ? "Open dashboard" : "Become a host"}
+                <ArrowRightIcon width={16} height={16} />
+              </Link>
+            </div>
+          </section>
+        </div>
+
+        <section
+          id="details"
+          aria-labelledby="profile-heading"
+          className="flex min-w-0 scroll-mt-24 flex-col gap-4 rounded-card border border-border bg-surface p-5 lg:sticky lg:top-24"
+        >
+          <h2 id="profile-heading" className="text-section font-bold text-text">Your details</h2>
+          <ProfileForm
+            next={next}
+            user={{
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              phone: user.phone,
+              kycVerified: user.organizerProfile?.kycStatus === "VERIFIED",
+            }}
+          />
+        </section>
+      </div>
     </Container>
   );
 }

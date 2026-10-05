@@ -15,6 +15,7 @@ import { Celebration } from "@/components/Celebration";
 import { Mascot } from "@/components/Mascot";
 import { TextField } from "@/components/TextField";
 import { CameraIcon, CheckIcon, ExternalLinkIcon, LockIcon, PersonIcon } from "@/components/icons";
+import { AsideCard, SplitPage } from "@/components/app/SplitPage";
 import { Button, ButtonLink, Container, ErrorNote, Spinner, cx } from "@/components/ui";
 import type { ApiKycStatus, ApiKycSession, ApiKycVerifyResult, KycIdType } from "@/types/api";
 
@@ -507,12 +508,15 @@ export function VerifyIdentity({
   );
 
   return (
-    <Container className="flex flex-col gap-6 py-10">
-      <Header
-        title="Verify your identity"
-        lead="A one-time check so you can take card and bank-transfer payments. It takes about a minute. We only keep the last four digits of your ID number."
-      />
-
+    <SplitPage
+      header={
+        <Header
+          title="Verify your identity"
+          lead="A one-time check so you can take card and bank-transfer payments. It takes about a minute. We only keep the last four digits of your ID number."
+        />
+      }
+      aside={<VerifyAside />}
+    >
       {status ? (
         <div
           role="status"
@@ -714,7 +718,30 @@ export function VerifyIdentity({
           </div>
         </form>
       )}
-    </Container>
+    </SplitPage>
+  );
+}
+
+/** Wide screens: the context a host would otherwise have to ask about. */
+function VerifyAside() {
+  return (
+    <>
+      <AsideCard title="What you'll need" icon={<CheckIcon width={16} height={16} />}>
+        <p>Your 11-digit BVN or NIN — or, for the selfie check, your NIN and a camera.</p>
+        <p>The phone number linked to your BVN, in case your bank asks you to approve the check.</p>
+      </AsideCard>
+      <AsideCard title="Why we ask" icon={<LockIcon width={16} height={16} />}>
+        <p>
+          Card and bank-transfer sales settle straight to a bank account in your
+          name. Nigerian rules require us to confirm who that is before any money moves.
+        </p>
+        <p>Crypto (USDC) events don&apos;t need this — they work already.</p>
+      </AsideCard>
+      <AsideCard title="What we keep">
+        <p>Only the last four digits of your ID number, and whether the check passed.</p>
+        <p>Once you&apos;re verified, your name locks to your ID so it can&apos;t be swapped later.</p>
+      </AsideCard>
+    </>
   );
 }
 

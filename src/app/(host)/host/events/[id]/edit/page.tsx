@@ -32,8 +32,6 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   }
 
   return (
-    <div className="mx-auto w-full max-w-[560px]">
-      <EventForm mode="edit" eventId={id} initial={draftFromEvent(draft)} chains={chains.ok ? chains.value : []} />
-    </div>
+    <EventForm mode="edit" eventId={id} initial={draftFromEvent(draft)} chains={chains.ok ? chains.value : []} />
   );
 }
