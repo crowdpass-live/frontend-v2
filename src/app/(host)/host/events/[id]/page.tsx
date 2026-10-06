@@ -79,10 +79,10 @@ export default async function HostEventOverviewPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Overview" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <section aria-label="Overview" className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         <StatTile
           tone="accent"
-          className="col-span-2 lg:col-span-1"
+          className="col-span-2 xl:col-span-1"
           label="Revenue"
           value={ngnCompact(overview.totalRevenue)}
           title={ngn(overview.totalRevenue)}
@@ -125,7 +125,7 @@ export default async function HostEventOverviewPage({
         />
       </Panel>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Panel
           title="Ticket types"
           note="Sales come from CrowdPass's records; check-ins and the claimable escrow are read from the chain. The two can differ for a while — a check-in reaches the chain after the door."

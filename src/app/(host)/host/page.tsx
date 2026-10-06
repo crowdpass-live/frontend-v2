@@ -131,7 +131,8 @@ export default async function HostDashboardPage({
           <h2 id="events-heading" className="text-section font-bold text-text">
             Your events
           </h2>
-          <ButtonLink href="/host/events/new" size="sm" className="w-auto">
+          {/* The sidebar carries it on a wide screen. */}
+          <ButtonLink href="/host/events/new" size="sm" className="w-auto lg:hidden">
             Create event
           </ButtonLink>
         </div>
@@ -170,7 +171,7 @@ export default async function HostDashboardPage({
         ) : (
           // grid-cols-1 is minmax(0, 1fr): without it the implicit column
           // grows to fit a long event name and `truncate` never kicks in.
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {list.events.map((event) => (
               <li key={event.id} className="flex min-w-0">
                 <OrganizerEventCard event={event} />

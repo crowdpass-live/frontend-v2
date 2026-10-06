@@ -27,7 +27,7 @@ export default async function MyTicketsPage({
   const { tickets, pagination } = await fetchMyTickets(page);
 
   return (
-    <Container className="flex flex-col gap-6 py-10">
+    <Container size="page" className="flex flex-col gap-6 py-10">
       <header className="flex flex-col gap-1">
         <h1 className="text-title font-bold text-text">My tickets</h1>
         <p className="text-body text-text-dim">
@@ -47,7 +47,7 @@ export default async function MyTicketsPage({
           <EmptyTickets />
         )
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {tickets.map((t) => {
             const status = TICKET_STATUS[t.status];
             const when = t.eventStart

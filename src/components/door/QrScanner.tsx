@@ -19,7 +19,7 @@ const PROBLEM_COPY: Record<ScannerProblem, string> = {
   // settings" link to offer, unlike the app. Say how, and point at the
   // fallbacks that always work.
   denied:
-    "Camera access is blocked for this site. Allow it in your browser's site settings (the icon beside the address), then reload — or enter the ticket code, or find the guest by name, below.",
+    "Camera access is blocked for this site. Allow it in your browser's site settings (the icon beside the address), then reload — or enter the ticket code, or find the guest by name in the guest list.",
   "no-camera": "No camera was found on this device. Enter the ticket code or find the guest by name instead.",
   insecure: "The camera only works over a secure (https) connection. Enter the ticket code or find the guest by name instead.",
   unsupported: "This browser can't use the camera. Enter the ticket code or find the guest by name instead.",

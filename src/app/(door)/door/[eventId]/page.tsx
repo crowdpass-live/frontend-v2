@@ -28,7 +28,7 @@ export default async function DoorEventPage({
   if (!door) notFound();
 
   return (
-    <Container className="flex flex-col gap-5 py-6 sm:py-8">
+    <Container size="page" className="flex flex-col gap-5 py-6 sm:py-8">
       <div className="flex flex-col gap-1">
         <Link
           href={door.own ? `/host/events/${door.eventId}` : "/door"}
