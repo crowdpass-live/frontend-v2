@@ -71,9 +71,11 @@ function TierOption({
 }) {
   const disabled = !tier.isOnSale;
   return (
+    // The radio is sr-only, so its own focus ring would be invisible: the
+    // keyboard focus is drawn on the whole row instead.
     <label
       className={cx(
-        "flex cursor-pointer items-center gap-4 py-4",
+        "flex cursor-pointer items-center gap-4 rounded-control py-4 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
         disabled && "cursor-not-allowed opacity-45",
       )}
     >
@@ -125,7 +127,7 @@ function MethodOption({
   onSelect: () => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-4 py-4">
+    <label className="flex cursor-pointer items-center gap-4 rounded-control py-4 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent">
       <input
         type="radio"
         name="method"

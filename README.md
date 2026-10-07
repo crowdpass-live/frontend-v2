@@ -1,23 +1,95 @@
 # CrowdPass Web
 
-The web surface for CrowdPass. It began as the guest purchase path — a shared
-link opens an event, and someone with no account walks out with a ticket — and
-that path is still the shopfront. It is now growing to full parity with the
-mobile app: accounts, organizers and the door. See the web-parity epic (#63)
-and its phase epics, and read [CONTRIBUTING.md](CONTRIBUTING.md) before picking
-up an issue.
+The web surface for CrowdPass, at parity with the mobile app. Three people
+use it, and the routes are grouped by who they are for:
+
+- **the buyer**, who opens a shared link and walks out with a ticket, with no
+  account needed. That path is still the shopfront and nothing in an account
+  is allowed to slow it down;
+- **the organizer**, who becomes a host, verifies, connects a bank, creates
+  and publishes events, watches them sell and gets paid;
+- **the door**, where whoever holds the phone scans tickets in.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before picking up an issue. This file
+explains *why* things are the way they are.
 
 ```
-/                         discover            search · category · location
-/events/[slug]            event detail        server-rendered, OG-scrapeable
-/events/[slug]/checkout   guest checkout      tier · quantity · details · rail
-/checkout/callback        payment return      polls settlement → 3 states
-/tickets/[reference]      the ticket + QR     public, no account needed
+(site)     guest, no account
+/                                  discover         search · category · location
+/events/[slug]                     event detail     server-rendered, OG-scrapeable
+/events/[slug]/checkout            checkout         tier · quantity · details · rail
+/checkout/callback                 fiat return      polls settlement → 3 states
+/checkout/crypto/[reference]       USDC deposit     exact amount · QR · polls
+/tickets/[reference]               the ticket + QR  public; the reference is the key
+
+(auth)     signed out
+/signup  /login  /verify-email  /forgot-password  /auth/reset-password
+
+(account)  any signed-in user
+/account                           profile          stats · USDC wallet card · details
+/account/tickets                   my tickets       → /tickets/[reference]
+
+(host)     organizers (a buyer here is offered "become a host")
+/host                              dashboard        tiles · sold-by-event · cards
+/host/verify                       identity (KYC)   BVN/NIN + NIBSS consent
+/host/payout-account               bank             Paystack / Monnify subaccount
+/host/payouts  /host/earnings      money            escrow payouts · partner earnings
+/host/events/new                   create           → DRAFT
+/host/events/[id]                  overview         analytics · price · payout · cancel
+/host/events/[id]/edit             edit             DRAFT only
+/host/events/[id]/attendees        roster + CSV     the only tier with contact details
+/host/events/[id]/members          member lists     claim-only ticket types
+/host/events/[id]/revenue-sharing  partners         shares of the organizer's cut
+/host/events/[id]/team             check-in team    grant / revoke delegates
+
+(door)     anyone with a door to work
+/door                              your doors
+/door/[eventId]                    console          scanner · manual entry · roster
+
+admin      ADMIN accounts
+/admin  /admin/status  /admin/login
 ```
 
-The routes above are the guest path. Accounts (`/login`, `/signup`,
-`/account`), the organizer area (`/host`) and the door (`/door`) are being
-built phase by phase; CONTRIBUTING.md maps every route group.
+## Who may see what
+
+Route groups don't appear in URLs; they decide the chrome and the gate.
+`src/proxy.ts` only checks that a live session cookie exists on `/account`,
+`/host`, `/door` and `/admin`. *Who* may see a page is the group layout's
+call, and none of it is the security boundary: the API checks the bearer and
+ownership on every request, and a page renders in parallel with its layout.
+
+**The door is gated on `GET /organizer/my-checkin-events` returning rows,
+never on `isOrganizer`.** Check-in staff are ordinary `BUYER` accounts holding
+an `EventTicketAdmin` grant; there is no staff role in the schema. Gating the
+door on the organizer flag locks out exactly the people it exists for: the
+friend handed a phone for the evening. An organizer may always scan their own
+events, so the door list merges both.
+
+**Three privacy tiers for one ticket, kept apart.** `/attendees` returns buyer
+email and phone (organizer only); the door roster deliberately returns names
+only; the public ticket lookup exposes a name. A component that renders
+contact details is never reused on a door surface.
+
+## The session
+
+**The JWT lives in an httpOnly cookie**, not localStorage. Mobile keeps it in
+`expo-secure-store`; the browser has no equivalent, and a cookie is what lets
+server components render authenticated pages while the token never exists in
+client JavaScript. Sign-in happens server-side (`POST /api/session`), so the
+token goes API → route handler → cookie. Admin uses the same session; there
+is exactly one way to be signed in.
+
+- **Server-first.** Authenticated pages fetch in server components through
+  `serverFetch()`. Client components call `apiFetch(path, { auth: true })`,
+  which goes through `/api/backend/*`; that handler swaps the cookie for a
+  bearer header and refuses cross-origin writes.
+- **Read `role` from `/auth/me`, never from the token.** The token's copy is
+  stamped at login; the API re-reads the user on every request, so a buyer who
+  becomes a host is a host on the next page load, without signing in again.
+- **No refresh token, no logout endpoint.** The backend issues a 24-hour JWT
+  and that is the whole lifecycle. A 401 always means "sign in again", and
+  every 401, server or browser, goes through one route that clears the cookie
+  and comes back via `?next=`.
 
 ## Discover (`/`)
 
@@ -211,8 +283,15 @@ a submit), and there each variant is explicitly hidden at the other breakpoint.
 
 **Only the chip strip may overflow.** The category row scrolls horizontally on
 narrow screens inside its own `overflow-x-auto`; nothing else is allowed past
-the viewport edge. `scratchpad/e2e-responsive.mjs` asserts this at seven widths
-from 320px to 1728px, ignoring elements inside a scroll container.
+the viewport edge. Organizer tables scroll inside their own container; they
+never widen the page.
+
+Both rules are checked by **`/dev/responsive-audit`** (`pnpm dev`, then open
+it; 404 in production). It loads every route at seven widths from 320px to
+1728px, flags any element past the right edge that isn't inside its own scroll
+container, and flags any form with two visible submits. It measures elements
+rather than page width, because `body { overflow-x: hidden }` would hide
+page-level overflow. Signed in, it covers `/account`, `/host` and `/door` too.
 
 ## The ticket page
 
@@ -282,10 +361,11 @@ storefront chrome entirely.
 **The client-side role check is a courtesy, not a gate.** Every `/admin/*`
 route on the API is `@Roles(UserRole.ADMIN)` — a different gate from the
 organizer pages, which use `@Roles(ORGANIZER, ADMIN)` — and answers 403 to
-anything else. A forged localStorage session buys an empty dashboard, not data.
-The check exists so an ORGANIZER who signs in gets one clear sentence instead
-of a wall of failed requests. If an admin action ever *mutates*, move it behind
-a route handler with an httpOnly cookie rather than hardening this in place.
+anything else. Admin signs in on the same httpOnly session as everyone else
+(the old localStorage session is gone), and its reads go through the
+`/api/backend` forwarder. The UI's role check exists so an ORGANIZER who signs
+in gets one clear sentence instead of a wall of failed requests; the API's
+403 is the gate.
 
 ### Rules the UI has to keep
 
@@ -363,6 +443,81 @@ alignment is arbitrary, inventing a correlation the data does not contain.
 Transactions ride in the tooltip instead. Provider amounts use **one hue for
 every bar**: nominal categories carrying one measure, so a per-provider hue
 would burn the only free channel restating bar length.
+
+## The crypto lane
+
+`POST /tickets/purchase` with `paymentProvider: 'CRYPTO'` returns
+`checkoutUrl: null` and one of two answers. **`paidFromBalance: true`** means
+the buyer's custodial USDC already covered it; it is settled, so the buyer goes
+straight to the ticket and never sees a deposit screen. Otherwise a **`crypto`**
+object says where to send what, and `/checkout/crypto/[reference]` shows it.
+
+**The deposit address is never read from the URL.** It is saved with the
+pending purchase in this browser's storage. A deposit page that took its
+address from a query string would let anyone send a buyer a link carrying a
+real reference and *their* address. Opened in another browser, the page says
+where to look and can still check the payment.
+
+**The amount is shown to full USDC precision**, because a buyer who under-sends
+by rounding does not get a ticket. **Expiry is not failure**: the page keeps
+checking for a while after the countdown, in case the deposit was already in
+flight. Settlement arrives by Circle webhook, and like everything async on this
+backend, the client polls (every 12s here); there is no WebSocket or SSE
+anywhere.
+
+**Wallets are custodial and read-only here.** The profile's wallet card reads
+USDC balances with a public `eth_call` (`balanceOf`), server-side, so browser
+CORS on RPCs never comes into it. There is no signing, no connect-wallet, and
+no user-facing wallet endpoint on the backend. A wallet still being created
+reads "Setting up", and an unreadable balance is a dash, never 0.00.
+
+## The door scanner
+
+`getUserMedia` works everywhere, but **`BarcodeDetector` does not exist on iOS
+Safari**, the most likely phone at a Nigerian door. So `lib/qr-detector.ts`
+uses two tiers: the native detector where it reads QR, and the
+`barcode-detector` ponyfill (zxing-wasm) everywhere else. The ~1 MB WASM is
+copied into `public/zxing/<version>/` by `scripts/copy-zxing-wasm.mjs` before
+`dev` and `build`, so a queue on mobile data never waits on a third-party CDN.
+**The camera and the clipboard need HTTPS**, so test the door on a preview
+deploy, not `localhost` on a phone.
+
+**The scanned string goes to `POST /tickets/resolve-qr` untouched.** Mobile
+tickets encode the bare reference; web and email tickets encode a signed
+`htv1.<payload>.<sig>` token. That endpoint exists to bridge the two, and a
+scanner that understands only one format rejects half the queue.
+
+**Check-in does not need the QR at all.** Verify and check-in look a ticket up
+by reference, and a buyer whose mint is still pending has a reference and no
+QR. Manual entry and the roster cover every device and every degraded state.
+They ship with the scanner, not after it.
+
+## Organizer money
+
+**Covers upload through `POST /api/uploads/cover`.** The backend has no upload
+endpoint (`coverImage` is just a URL), so a route handler holds a server-only
+`PINATA_JWT`. Mobile ships its Pinata key in the app bundle; on the web that
+key would sit in JavaScript anyone can read, so it never gets a
+`NEXT_PUBLIC_` prefix.
+
+**`shareBps` is basis points of the organizer's cut, not of gross.** A
+revenue partner set at 20% of a host who keeps 95% of each sale receives 19%
+of the sale. Every share is shown both ways ("20% of your cut · 19% of each
+sale"), because a partner told "20%" who sees 19% thinks they were shorted.
+
+**A published event's only editable field is ticket price**, and changing it
+rewrites the on-chain fee for new sales only. **A payout request is
+asynchronous**: the UI says "requested", never "paid", until `GET
+/organizer/payouts` says otherwise. **Cancelling auto-enqueues refunds** for
+USDC tickets on refundable events, and there is no un-cancel.
+
+**A `DEV_`-prefixed subaccount means "not connected".** A dev subaccount that
+reads as connected is how an organizer publishes an event that cannot take
+money.
+
+**A rate is `null`, never `0`, when nothing was divided.** On every organizer
+and admin surface, an empty period renders as an em dash with its reason,
+never as "0%".
 
 ## Loading states
 
