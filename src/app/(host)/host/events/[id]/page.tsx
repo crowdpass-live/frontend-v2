@@ -5,12 +5,16 @@ import {
   fetchEventControls,
   fetchOnchainBalance,
   fetchOnchainCheckins,
+  fetchOwnTicketTypes,
   settle,
 } from "@/lib/organizer";
+import { USDC_DECIMALS, unitsToDecimal } from "@/lib/onchain";
 import { count, ngn, ngnCompact, NO_VALUE, titleCase } from "@/lib/metric-format";
+import type { ApiOnchainBalance } from "@/types/api";
 import { DailyRevenueChart } from "@/components/DailyRevenueChart";
 import { Panel, StatRow, StatTile } from "@/components/StatTile";
 import { CancelEvent } from "@/components/host/CancelEvent";
+import { EventMoneyActions, type Claimable } from "@/components/host/EventMoneyActions";
 import { TicketTypeTable } from "@/components/host/TicketTypeTable";
 
 export const metadata: Metadata = { title: "Event overview" };
@@ -27,7 +31,7 @@ const CHANNEL_LABEL: Record<string, string> = {
 
 /**
  * The reporting half of `EventAnalyticsScreen.js` — the organizer's control
- * room for one event. Actions (price edit, payouts) are #42.
+ * room for one event, plus its money actions (price edit, payout: #42).
  *
  * Rule inherited from the admin dashboard: a rate is NOT a number when there
  * was nothing to divide. The API sends `checkInRate` and `averageTicketPrice`
@@ -53,6 +57,17 @@ export default async function HostEventOverviewPage({
   ]);
   // The layout renders the 404 / not-yours state for a failed read.
   if (!result.ok) return null;
+
+  // Price edits need ticket-type ids, which the analytics breakdown lacks;
+  // only a live event's prices can change (drafts edit through the form).
+  const live = controls.ok && controls.value?.status === "PUBLISHED";
+  const types = live ? await settle(fetchOwnTicketTypes(id)) : null;
+  const priced =
+    types?.ok && types.value
+      ? types.value.ticketTypes
+          .filter((t) => !t.claimOnly)
+          .map((t) => ({ id: t.id, name: t.name, price: Number(t.price) }))
+      : [];
   const analytics = result.value;
   const { overview, earnings } = analytics;
   const sold = overview.totalTicketsSold;
@@ -179,6 +194,14 @@ export default async function HostEventOverviewPage({
           </Panel>
         </div>
       ) : null}
+      {controls.ok && (controls.value?.status === "PUBLISHED" || controls.value?.status === "COMPLETED") ? (
+        <EventMoneyActions
+          eventId={id}
+          canEditPrices={live && priced.length > 0}
+          ticketTypes={priced}
+          claimable={claimableFrom(balance)}
+        />
+      ) : null}
       {controls.ok && controls.value ? (
         <CancelEvent
           eventId={id}
@@ -190,4 +213,21 @@ export default async function HostEventOverviewPage({
       ) : null}
     </div>
   );
+}
+
+/**
+ * The event's claimable escrow: the sum of every ticket type's on-chain
+ * balance, in exact integer units (`balanceRaw`) so nothing is lost to
+ * floats. A type the chain couldn't read makes the total a floor, not a
+ * figure; a failed read altogether makes it unknown.
+ */
+function claimableFrom(balance: { ok: true; value: ApiOnchainBalance } | { ok: false }): Claimable {
+  if (!balance.ok) return { usdc: "0", partial: false, unknown: true };
+  let units = BigInt(0);
+  let partial = false;
+  for (const row of balance.value.tickets) {
+    if ("error" in row) partial = true;
+    else if (/^\d+$/.test(row.balanceRaw)) units += BigInt(row.balanceRaw);
+  }
+  return { usdc: unitsToDecimal(units.toString(), USDC_DECIMALS), partial, unknown: false };
 }
