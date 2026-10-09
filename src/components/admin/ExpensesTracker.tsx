@@ -11,10 +11,12 @@ import {
   addExpense,
   expenseInput,
   fetchExpenses,
+  type CategorySummary,
   type ExpenseList,
   type ExpenseRow,
+  type ExpenseSummary,
 } from "@/lib/expenses";
-import { count, ngn, ngnCompact, NO_VALUE } from "@/lib/metric-format";
+import { count, percent, usd, usdCompact, NO_VALUE } from "@/lib/metric-format";
 import { Panel, StatTile } from "@/components/StatTile";
 import { TextField } from "@/components/TextField";
 import { Select } from "@/components/Select";
@@ -22,7 +24,7 @@ import { BrandSpinner } from "@/components/BrandSpinner";
 import { ExternalLinkIcon } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { ApiError } from "@/lib/api";
-import { Button, Card, Container, ErrorNote, Spinner } from "@/components/ui";
+import { Button, Card, Container, ErrorNote, Spinner, cx } from "@/components/ui";
 
 const QUERY_KEY = ["admin", "expenses"] as const;
 
@@ -35,8 +37,8 @@ const formSchema = expenseInput.extend({
     .string()
     .trim()
     .min(1, "Enter an amount")
-    // "₦25,000" and "25 000" are how people type money; the sheet wants 25000.
-    .transform((v) => Number(v.replace(/[₦,\s]/g, "")))
+    // "$2,500" and "2 500" are how people type money; the sheet wants 2500.
+    .transform((v) => Number(v.replace(/[$,\s]/g, "")))
     .pipe(expenseInput.shape.amount),
   receipt: z
     .string()
@@ -51,6 +53,13 @@ type FormOut = z.output<typeof formSchema>;
 /** Today in Lagos, as the date input wants it. Same on server and client. */
 function today(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
+}
+
+/** `2026-10` → `Oct 2026`. */
+function monthLabel(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  if (!y || !m) return ym;
+  return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 }
 
 function day(iso: string): string {
@@ -108,23 +117,35 @@ export function ExpensesTracker() {
 }
 
 function Tracker({ data, refreshing }: { data: ExpenseList; refreshing: boolean }) {
+  const sum = data.summary;
   return (
     <Container size="page" className="flex flex-col gap-8 pt-8">
       <header>
         <h1 className="text-title font-bold text-text">Expenses</h1>
         <p className="mt-1 text-helper text-text-faint">
-          Every entry goes straight into the finance sheet. The totals come from the sheet&apos;s own
-          formula.
+          Every entry goes straight into the finance sheet, in US dollars. Every figure here is the
+          sheet&apos;s own formula.
         </p>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 lg:max-w-2xl">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile
+          label="This month"
+          value={sum ? usdCompact(sum.thisMonth) : NO_VALUE}
+          title={sum ? usd(sum.thisMonth) : undefined}
+          hint={sum ? changeHint(sum) : "Summary tab unavailable"}
+          tone="accent"
+        />
+        <StatTile
+          label="Budget used"
+          value={sum?.budget?.used == null ? NO_VALUE : percent(sum.budget.used, 0)}
+          hint={budgetHint(sum)}
+        />
         <StatTile
           label="Total spent"
-          value={ngnCompact(data.total)}
-          title={ngn(data.total)}
-          hint={data.total === null ? "No running total in the sheet yet" : "Running total, column H"}
-          tone="accent"
+          value={usdCompact(data.total ?? sum?.allTime)}
+          title={usd(data.total ?? sum?.allTime)}
+          hint={data.total === null && !sum ? "No running total in the sheet yet" : "All time"}
         />
         <StatTile
           label="Entries"
@@ -155,7 +176,139 @@ function Tracker({ data, refreshing }: { data: ExpenseList; refreshing: boolean 
           )}
         </Panel>
       </div>
+
+      {sum ? (
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+          <Panel
+            title="By category"
+            note="This month against its budget. Budgets are typed into the sheet's Summary tab."
+          >
+            <CategoryList categories={sum.categories} />
+          </Panel>
+          <Panel title="By month" note="The last 12 months, newest first">
+            <MonthBars months={sum.months} />
+          </Panel>
+        </div>
+      ) : (
+        <Card className="p-5">
+          <p className="text-label text-text-dim">
+            The breakdowns come from the sheet&apos;s Summary tab, which couldn&apos;t be read. Check
+            the tab exists, or delete it and reload this page to have it rebuilt.
+          </p>
+        </Card>
+      )}
     </Container>
+  );
+}
+
+function changeHint(sum: ExpenseSummary): string {
+  if (sum.lastMonth === 0) return "Nothing spent last month";
+  if (sum.changePct === null || sum.change === null) return `Last month ${usd(sum.lastMonth)}`;
+  if (sum.change === 0) return `Same as last month`;
+  return `${sum.change > 0 ? "Up" : "Down"} ${percent(Math.abs(sum.changePct), 0)} on last month (${usdCompact(sum.lastMonth)})`;
+}
+
+function budgetHint(sum: ExpenseSummary | null): string {
+  const b = sum?.budget;
+  if (!sum || !b) return "Summary tab unavailable";
+  if (b.total === null || b.remaining === null) return "No budgets set in the Summary tab";
+  return b.remaining < 0
+    ? `Over by ${usdCompact(-b.remaining)} this month`
+    : `${usdCompact(b.remaining)} left of ${usdCompact(b.total)}`;
+}
+
+/**
+ * Spend against budget, per category. The bar is the budget, so its fill is
+ * "% used"; a category with no budget gets no bar rather than one on some
+ * other scale. Over budget is said in words as well as in red.
+ */
+function CategoryList({ categories }: { categories: CategorySummary[] }) {
+  const shown = categories.filter((c) => c.budget !== null || c.spentAllTime > 0);
+  if (shown.length === 0) {
+    return (
+      <p className="py-2 text-label text-text-faint">
+        Nothing spent yet, and no budgets set.
+      </p>
+    );
+  }
+  return (
+    <ul className="flex flex-col gap-4">
+      {shown.map((c) => {
+        const over = c.remaining !== null && c.remaining < 0;
+        return (
+          <li key={c.name} className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="min-w-0 truncate text-label text-text">{c.name}</span>
+              <span className="shrink-0 text-label tabular-nums text-text">
+                <span className="font-bold">{usd(c.spentThisMonth)}</span>
+                {c.budget !== null ? (
+                  <span className="text-text-faint"> / {usd(c.budget)}</span>
+                ) : null}
+              </span>
+            </div>
+            {c.budget !== null && c.budget > 0 ? (
+              <div
+                className="h-2 w-full overflow-hidden rounded-full bg-surface-strong"
+                role="img"
+                aria-label={`${percent(c.used, 0)} of the ${c.name} budget used`}
+                title={`${percent(c.used, 0)} used`}
+              >
+                <div
+                  className={cx("h-full rounded-full", over ? "bg-danger" : "bg-accent")}
+                  style={{ width: `${Math.min(100, Math.max(c.spentThisMonth > 0 ? 2 : 0, (c.used ?? 0) * 100))}%` }}
+                />
+              </div>
+            ) : null}
+            <span className={cx("text-helper", over ? "text-danger" : "text-text-faint")}>
+              {c.budget === null
+                ? "No budget"
+                : over
+                  ? `Over budget by ${usd(-(c.remaining ?? 0))}`
+                  : `${usd(c.remaining)} left · ${percent(c.used, 0)} used`}
+              {" · "}
+              <span className="text-text-faint">All time {usd(c.spentAllTime)}</span>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** One measure over time, one colour, values written out — a bar list. */
+function MonthBars({ months }: { months: ExpenseSummary["months"] }) {
+  const max = Math.max(...months.map((m) => m.spent), 0);
+  if (max === 0) {
+    return <p className="py-2 text-label text-text-faint">Nothing spent in the last 12 months.</p>;
+  }
+  return (
+    <ul className="flex flex-col gap-2.5">
+      {months.map((m) => (
+        <li
+          key={m.month}
+          className="grid grid-cols-[4.5rem_minmax(0,1fr)_5.75rem] items-center gap-3"
+          title={`${monthLabel(m.month)}: ${usd(m.spent)}`}
+        >
+          <span className="text-helper text-text-dim">{monthLabel(m.month)}</span>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-strong">
+            {m.spent > 0 ? (
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${Math.max(2, (m.spent / max) * 100)}%` }}
+              />
+            ) : null}
+          </div>
+          <span
+            className={cx(
+              "text-right text-label tabular-nums",
+              m.spent > 0 ? "font-bold text-text" : "text-text-faint",
+            )}
+          >
+            {usd(m.spent)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -179,9 +332,9 @@ function EntryRow({ entry }: { entry: ExpenseRow }) {
         ) : null}
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-label font-bold tabular-nums text-text">{ngn(entry.amount)}</p>
+        <p className="text-label font-bold tabular-nums text-text">{usd(entry.amount)}</p>
         <p className="text-helper tabular-nums text-text-faint" title="Running total after this entry">
-          {entry.runningTotal === null ? NO_VALUE : ngn(entry.runningTotal)}
+          {entry.runningTotal === null ? NO_VALUE : usd(entry.runningTotal)}
         </p>
       </div>
     </li>
@@ -239,9 +392,9 @@ function ExpenseForm() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField
-          label="Amount (₦)"
+          label="Amount ($)"
           inputMode="decimal"
-          placeholder="25,000"
+          placeholder="250.00"
           autoComplete="off"
           error={errors.amount?.message}
           {...form.register("amount")}

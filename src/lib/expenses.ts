@@ -12,11 +12,15 @@ import { ApiError } from "./api";
  * is public by necessity ("Anyone" access), so the secret is the only thing
  * standing between it and a stranger with the link.
  *
- * Sheet columns, A–H:
- *   Date | Description | Category | Amount (₦) | Paid by | Method | Receipt link | Running total
+ * Sheet columns, A–H. Amounts are US dollars.
+ *   Date | Description | Category | Amount ($) | Paid by | Method | Receipt link | Running total
+ *
+ * The breakdowns (by category, by month, budget, month on month) are read
+ * from a Summary tab of formulas the script builds once; finance types the
+ * monthly budgets into it.
  */
 
-/** Must match the sheet's dropdowns, if it has any. */
+/** Must match the sheet's dropdowns, if it has any, and CATEGORIES in the script. */
 export const EXPENSE_CATEGORIES = [
   "Operations",
   "Marketing",
@@ -47,7 +51,7 @@ export const expenseInput = z.object({
     .number({ message: "Enter an amount" })
     .positive("The amount must be more than zero")
     .max(1_000_000_000, "That amount is too large")
-    // Kobo at most: anything finer is a typo, and the sheet would hide it.
+    // Cents at most: anything finer is a typo, and the sheet would hide it.
     .refine((v) => Math.round(v * 100) === v * 100, "Use at most two decimal places"),
   paidBy: z
     .string()
@@ -77,6 +81,38 @@ export interface ExpenseRow {
   runningTotal: number | null;
 }
 
+export interface CategorySummary {
+  name: string;
+  /** Typed by finance into the Summary tab. Null = no budget for it. */
+  budget: number | null;
+  spentThisMonth: number;
+  /** Null without a budget; negative when over it. */
+  remaining: number | null;
+  /** 0–1+, null without a budget. */
+  used: number | null;
+  spentAllTime: number;
+}
+
+/** Every figure here is a Summary-tab formula's result, not ours. */
+export interface ExpenseSummary {
+  categories: CategorySummary[];
+  /** The Total row: null budget fields when no category has one. */
+  budget: {
+    total: number | null;
+    spent: number;
+    remaining: number | null;
+    used: number | null;
+  } | null;
+  allTime: number | null;
+  /** The last 12 months, newest first; `month` is `YYYY-MM`. */
+  months: { month: string; spent: number }[];
+  thisMonth: number;
+  lastMonth: number;
+  change: number | null;
+  /** 0–1 form; null when last month was zero. */
+  changePct: number | null;
+}
+
 export interface ExpenseList {
   /** Newest first, at most the last 50. */
   rows: ExpenseRow[];
@@ -84,6 +120,8 @@ export interface ExpenseList {
   count: number;
   /** The last row's running total — the sheet's figure, not ours. */
   total: number | null;
+  /** Null when the Summary tab couldn't be built or read. */
+  summary: ExpenseSummary | null;
 }
 
 export interface ExpenseAdded {
