@@ -26,6 +26,30 @@ export function ngn(value: number | null | undefined): string {
   })}`;
 }
 
+/** US dollars to the cent: `$1,240.50`. The admin expenses tracker's currency. */
+export function usd(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return NO_VALUE;
+  }
+  const sign = value < 0 ? "-" : "";
+  return `${sign}$${Math.abs(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/** Compact USD for tiles: `$12.4K`, `$1.2M`. Exact figure goes in `title`. */
+export function usdCompact(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return NO_VALUE;
+  }
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 10_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}$${Math.round(abs).toLocaleString("en-US")}`;
+}
+
 /**
  * Compact NGN for tiles where the exact kobo is noise: `₦2.9M`, `₦847.2K`.
  * The precise figure belongs in a title attribute, not in 40px type.
