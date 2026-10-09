@@ -7,6 +7,7 @@ import { claimEntriesPath } from "./claim-list";
 import { apiFetch } from "./api";
 import type {
   ApiAttendees,
+  ApiBeneficiaries,
   ApiBank,
   ApiBankHistory,
   ApiClaimList,
@@ -239,9 +240,10 @@ const OWN_EVENT_SCAN_PAGES = 10;
 /**
  * The organizer's own summary row for an event (slug and status), by id.
  * The analytics response carries neither, and ticket types are only
- * readable through the slug (published) or the drafts list.
+ * readable through the slug (published) or the drafts list. Deduplicated
+ * per request: the overview page asks for both controls and ticket types.
  */
-export async function findOwnEvent(eventId: string) {
+export const findOwnEvent = cache(async (eventId: string) => {
   for (let page = 1; page <= OWN_EVENT_SCAN_PAGES; page++) {
     const res = await fetchOrganizerEvents({ page, limit: ORGANIZER_EVENTS_MAX_LIMIT });
     const hit = res.events.find((e) => e.id === eventId);
@@ -249,7 +251,7 @@ export async function findOwnEvent(eventId: string) {
     if (page >= res.pagination.totalPages) break;
   }
   return null;
-}
+});
 
 /**
  * What the publish / cancel controls need about one of the caller's events:
@@ -348,6 +350,17 @@ export function fetchClaimList(eventId: string, ticketTypeId: string) {
 export function fetchTicketAdmins(eventId: string) {
   return serverFetch<ApiTicketAdmin[]>(
     `/organizer/events/${encodeURIComponent(eventId)}/ticket-admins`,
+    { timeout: 45_000 },
+  );
+}
+
+/**
+ * `GET /organizer/events/:id/beneficiaries` — revenue partners (#43).
+ * `shareBps` is basis points of the organizer's cut, not of gross.
+ */
+export function fetchBeneficiaries(eventId: string) {
+  return serverFetch<ApiBeneficiaries>(
+    `/organizer/events/${encodeURIComponent(eventId)}/beneficiaries`,
     { timeout: 45_000 },
   );
 }

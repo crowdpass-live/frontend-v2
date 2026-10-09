@@ -12,6 +12,7 @@ import { Container, cx } from "@/components/ui";
 
 const NAV = [
   { href: "/admin", label: "Metrics" },
+  { href: "/admin/expenses", label: "Expenses" },
   { href: "/admin/status", label: "Status" },
 ];
 
@@ -103,7 +104,12 @@ export function AdminShell({
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
-        <Container size="page" className="flex h-16 items-center gap-6">
+        {/* Phones: logo and sign-out on one row, the tabs on a second — three
+            tabs and both ends don't fit 320px on one. */}
+        <Container
+          size="page"
+          className="flex flex-wrap items-center gap-x-6 gap-y-2 py-3 sm:h-16 sm:flex-nowrap sm:py-0"
+        >
           <Link href="/admin" className="flex shrink-0 items-center gap-2.5">
             <Logo variant="mark" height={20} />
             <span className="text-label font-bold tracking-wide text-text-dim">
@@ -111,7 +117,7 @@ export function AdminShell({
             </span>
           </Link>
 
-          <nav className="flex flex-1 items-center gap-1">
+          <nav className="order-last -mx-4 flex w-full items-center gap-1 sm:order-none sm:mx-0 sm:w-auto sm:flex-1">
             {NAV.map((item) => {
               const active =
                 item.href === "/admin"
@@ -138,7 +144,7 @@ export function AdminShell({
           <button
             type="button"
             onClick={leave}
-            className="shrink-0 text-label text-text-faint transition-colors hover:text-text"
+            className="ml-auto shrink-0 text-label text-text-faint transition-colors hover:text-text sm:ml-0"
           >
             Sign out
           </button>
