@@ -23,6 +23,7 @@ export function EventTabs({ eventId }: { eventId: string }) {
     { href: `${base}/members`, label: "Member lists" },
     // Applications and stall setup live under it as their own pages.
     { href: `${base}/vendors`, label: "Vendors", section: true },
+    { href: `${base}/referrals`, label: "Referrals" },
     { href: `${base}/revenue-sharing`, label: "Revenue sharing" },
     { href: `${base}/team`, label: "Check-in team" },
     // Opens the door console (its own shell) — an organizer may always scan

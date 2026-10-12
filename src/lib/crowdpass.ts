@@ -186,7 +186,18 @@ export interface PurchasePayload {
   deliveryChannel: DeliveryChannel;
   paymentProvider: PaymentProvider;
   returnUrl?: string;
+  /** The last `/r/:code` opened for this event (#50); see `lib/referral`. */
+  referralCode?: string;
+  /** The buyer agreed to hear from the organizer (NDPA). Omitted unless ticked. */
+  marketingOptIn?: boolean;
 }
+
+/**
+ * Optional fields newer than some deployed API. Under
+ * `forbidNonWhitelisted` an API that predates one rejects the whole
+ * purchase, so each is dropped and the purchase retried instead.
+ */
+const DROPPABLE: (keyof PurchasePayload)[] = ["returnUrl", "referralCode", "marketingOptIn"];
 
 /**
  * `POST /tickets/purchase` — the guest purchase endpoint.
@@ -203,7 +214,8 @@ export interface PurchasePayload {
  * Monnify, so it waits on a third party before it can answer. A timeout does
  * NOT mean the purchase failed — see `CheckoutForm` for the recovery.
  *
- * `returnUrl` is retried away rather than feature-flagged. The backend runs
+ * The `DROPPABLE` fields (`returnUrl`, `referralCode`, `marketingOptIn`) are
+ * retried away rather than feature-flagged. The backend runs
  * `ValidationPipe({ forbidNonWhitelisted: true })`, so a deployment that
  * predates the `returnUrl` DTO field rejects the whole purchase with
  * `"property returnUrl should not exist"` — which would break every sale on
@@ -213,7 +225,8 @@ export interface PurchasePayload {
  *
  * Retrying is safe in this one case and only this one: validation runs before
  * the controller, so the rejected attempt provably created no transaction and
- * reserved no seat. Never retry a purchase on any other error.
+ * reserved no seat. Never retry a purchase on any other error. Losing the
+ * referral code there only leaves the sale unattributed.
  */
 export async function purchaseTicket(
   payload: PurchasePayload,
@@ -239,22 +252,23 @@ export async function purchaseTicket(
     }
   };
 
-  try {
-    return await post(payload);
-  } catch (err) {
-    if (
-      payload.returnUrl &&
-      err instanceof ApiError &&
-      err.rejectedProperty("returnUrl")
-    ) {
-      // Fall back to the API's own callback page. The buyer still pays and
-      // still settles — they just land on the backend's result page instead
-      // of ours until the API catches up.
-      const { returnUrl: _dropped, ...rest } = payload;
-      void _dropped;
-      return post(rest);
+  let body = payload;
+  // One retry per droppable field at most; anything else is thrown as-is.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await post(body);
+    } catch (err) {
+      const rejected =
+        err instanceof ApiError
+          ? DROPPABLE.filter((f) => body[f] !== undefined && err.rejectedProperty(f))
+          : [];
+      if (!rejected.length || attempt >= DROPPABLE.length) throw err;
+      // A returnUrl fallback lands the buyer on the API's own result page
+      // until it catches up; they still pay and still settle.
+      const next = { ...body };
+      for (const f of rejected) delete next[f];
+      body = next;
     }
-    throw err;
   }
 }
 
