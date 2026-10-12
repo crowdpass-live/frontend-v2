@@ -966,3 +966,50 @@ export interface ApiVendorApplications {
   };
   pagination: Pagination;
 }
+
+/** `GET /events/:slug/stall-types` — public; published events only (else 404). */
+export interface ApiPublicStalls {
+  eventId: string;
+  registration: ApiVendorRegistration;
+  /** Active types only. */
+  stallTypes: {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    passesPerStall: number;
+    remaining: number;
+  }[];
+}
+
+/** A vendor's door pass. The QR is the bare `CROWDPASS_VND_…` reference. */
+export interface ApiVendorPass {
+  reference: string;
+  holderName: string | null;
+  /** CONFIRMED while valid — it stays so after scans (re-entry is allowed). */
+  status: TicketStatus;
+  firstCheckedInAt: string | null;
+  lastCheckedInAt: string | null;
+  checkInCount: number;
+  /** A PNG data URL. */
+  qrDataUrl: string;
+}
+
+/** `GET /vendor-applications/:id` — the vendor's own; anyone else's is a 404. */
+export interface ApiVendorApplicationDetail extends ApiVendorApplication {
+  /** Empty until paid (or approved, for a free stall). */
+  passes: ApiVendorPass[];
+  /** The vendor's own ticket link; null before approval. */
+  referralLink: { code: string; url: string; status: "ACTIVE" | "DISABLED" } | null;
+}
+
+/** `POST /vendor-applications/:id/pay`. Redirect to `checkoutUrl`. */
+export interface ApiVendorPayResult {
+  reference: string;
+  checkoutUrl: string;
+  amount: number;
+  platformFee: number;
+  organizerAmount: number;
+  currency: string;
+  provider: PaymentProvider;
+}

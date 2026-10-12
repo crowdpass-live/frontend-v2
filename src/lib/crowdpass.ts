@@ -8,6 +8,7 @@ import type {
   ApiFiatMethod,
   ApiCryptoMethod,
   ApiPaymentMethods,
+  ApiPublicStalls,
   ApiPurchaseResult,
   ApiTicket,
   ApiVerifyResult,
@@ -86,6 +87,16 @@ export function fetchEventBySlug(slug: string): Promise<ApiEvent> {
   });
 }
 
+/**
+ * `GET /events/:slug/stall-types` — the vendor section of the event page.
+ * Short-lived cache: `remaining` moves as the organizer approves vendors.
+ */
+export function fetchPublicStalls(slug: string): Promise<ApiPublicStalls> {
+  return apiFetch<ApiPublicStalls>(`/events/${encodeURIComponent(slug)}/stall-types`, {
+    next: { revalidate: 30, tags: [`event:${slug}`] },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Payments
 // ---------------------------------------------------------------------------
@@ -119,6 +130,19 @@ export async function fetchPaymentMethods(
     crypto:
       (methods.find((m) => m.type === "crypto") as ApiCryptoMethod) ?? null,
   };
+}
+
+/**
+ * Every card/transfer provider this event can take money on — what a vendor
+ * may pay a stall fee with. Stall fees are fiat-only: crypto can't carry
+ * them, so the crypto entry is dropped rather than offered.
+ */
+export async function fetchFiatProviders(eventId: string): Promise<ApiFiatMethod[]> {
+  const data = await apiFetch<ApiPaymentMethods>(
+    `/payments/methods?eventId=${encodeURIComponent(eventId)}`,
+    { cache: "no-store" },
+  );
+  return (data?.methods ?? []).filter((m): m is ApiFiatMethod => m.type === "fiat");
 }
 
 /**

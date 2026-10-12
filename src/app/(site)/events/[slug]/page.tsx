@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ApiError } from "@/lib/api";
-import { fetchEventBySlug, fetchPaymentMethods } from "@/lib/crowdpass";
+import { fetchEventBySlug, fetchPaymentMethods, fetchPublicStalls } from "@/lib/crowdpass";
 import {
   chainName,
   formatDate,
   formatTime,
   money,
   saleWindow,
+  sellsTickets,
   titleCase,
 } from "@/lib/format";
 import { EventCover } from "@/components/EventCover";
 import { ClaimTicketButton } from "@/components/ClaimTicketButton";
+import { VendorStalls, takingVendors } from "@/components/VendorStalls";
 import { CalendarIcon, PinIcon } from "@/components/icons";
 import { Badge, ButtonLink, Card, SectionTitle, Container } from "@/components/ui";
 import type { ApiEvent, ApiTicketType } from "@/types/api";
@@ -167,7 +169,17 @@ export default async function EventDetailPage({
   // is offered depends on the organizer having completed a real gateway
   // subaccount — and promising "Card" here when checkout can only do crypto
   // is a promise the next page breaks.
-  const methods = await fetchPaymentMethods(event.id).catch(() => null);
+  //
+  // The stall list is optional to the page: most events take no vendors,
+  // and a failed read must not take the ticket page down with it.
+  const [methods, stalls] = await Promise.all([
+    fetchPaymentMethods(event.id).catch(() => null),
+    fetchPublicStalls(event.slug).catch(() => null),
+  ]);
+  // False for a vendors-only event: no ticket picker, no "Get tickets", and
+  // its minPrice of 0 is never "Free". The stall section takes the rail.
+  const ticketed = sellsTickets(event);
+  const vendorsOpen = takingVendors(stalls);
 
   const currency = event.currency || "NGN";
   const tiers = event.ticketTypes ?? [];
@@ -191,7 +203,7 @@ export default async function EventDetailPage({
   return (
     // `pb-32` clears the fixed mobile purchase bar; from `lg` the bar is gone
     // and the padding with it.
-    <main className="flex flex-1 flex-col pb-32 lg:pb-16">
+    <main className={`flex flex-1 flex-col lg:pb-16 ${ticketed || vendorsOpen ? "pb-32" : "pb-16"}`}>
       {/* Full-bleed on a phone, an inset rounded hero once there is a page
        * around it — a cover running edge-to-edge on a 1440px monitor reads as
        * a banner ad rather than as part of the page. */}
@@ -258,9 +270,11 @@ export default async function EventDetailPage({
         <section className="flex flex-col gap-3">
           <SectionTitle>Good to know</SectionTitle>
           <Card className="divide-y divide-border">
-            <InfoRow label="Ticket">
-              NFT{event.chain ? ` · ${chainName(event.chain)}` : ""}
-            </InfoRow>
+            {ticketed ? (
+              <InfoRow label="Ticket">
+                NFT{event.chain ? ` · ${chainName(event.chain)}` : ""}
+              </InfoRow>
+            ) : null}
             <InfoRow label="Payment">
               {/* No methods resolved (the lookup failed) falls back to the
                * event's own flags rather than showing an empty row. */}
@@ -299,80 +313,102 @@ export default async function EventDetailPage({
          * fixed bar); a sticky sidebar from `lg`, where the buyer can read the
          * description and still see prices and the CTA without scrolling. */}
         <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
-          <section className="flex flex-col gap-3">
-            <SectionTitle>Tickets</SectionTitle>
-            {tiers.length === 0 ? (
-              <Card className="p-4 text-body text-text-dim">
-                No tickets have been published for this event yet.
-              </Card>
-            ) : (
-              tiers.map((tier) => (
-                <TicketTierRow
-                  key={tier.id}
-                  tier={tier}
-                  currency={currency}
-                  eventId={event.id}
-                />
-              ))
-            )}
-          </section>
+          {ticketed ? (
+            <>
+              <section className="flex flex-col gap-3">
+                <SectionTitle>Tickets</SectionTitle>
+                {tiers.length === 0 ? (
+                  <Card className="p-4 text-body text-text-dim">
+                    No tickets have been published for this event yet.
+                  </Card>
+                ) : (
+                  tiers.map((tier) => (
+                    <TicketTierRow
+                      key={tier.id}
+                      tier={tier}
+                      currency={currency}
+                      eventId={event.id}
+                    />
+                  ))
+                )}
+              </section>
 
-          {/* The desktop CTA. Hidden below `lg`, where the fixed bar owns it —
-           * two visible "Get tickets" buttons on one screen is a worse answer
-           * than one in the right place for each layout. */}
-          <div className="hidden lg:flex lg:flex-col lg:gap-3">
-            {canBuy ? (
-              <>
-                <ButtonLink
-                  href={`/events/${event.slug}/checkout`}
-                  className="w-full"
-                >
-                  Get tickets
-                </ButtonLink>
-                <p className="text-center text-helper text-text-faint">
-                  {from !== null ? `From ${money(from, currency)} · ` : ""}
-                  No account needed
-                </p>
-              </>
-            ) : saleOpen ? (
-              // Sale window is open but every tier is claim-only — each tier
-              // row above already carries its own claim button, so there is
-              // nothing left for this CTA to do.
-              null
-            ) : (
-              <span className="inline-flex h-14 w-full items-center justify-center rounded-control bg-surface px-6 text-body font-bold text-text-faint">
-                {blockedReason}
-              </span>
-            )}
-          </div>
+              {/* The desktop CTA. Hidden below `lg`, where the fixed bar owns it —
+               * two visible "Get tickets" buttons on one screen is a worse answer
+               * than one in the right place for each layout. */}
+              <div className="hidden lg:flex lg:flex-col lg:gap-3">
+                {canBuy ? (
+                  <>
+                    <ButtonLink
+                      href={`/events/${event.slug}/checkout`}
+                      className="w-full"
+                    >
+                      Get tickets
+                    </ButtonLink>
+                    <p className="text-center text-helper text-text-faint">
+                      {from !== null ? `From ${money(from, currency)} · ` : ""}
+                      No account needed
+                    </p>
+                  </>
+                ) : saleOpen ? (
+                  // Sale window is open but every tier is claim-only — each tier
+                  // row above already carries its own claim button, so there is
+                  // nothing left for this CTA to do.
+                  null
+                ) : (
+                  <span className="inline-flex h-14 w-full items-center justify-center rounded-control bg-surface px-6 text-body font-bold text-text-faint">
+                    {blockedReason}
+                  </span>
+                )}
+              </div>
+            </>
+          ) : null}
+          {/* Under the tickets when the event sells both; the whole rail on a
+           * vendors-only event, where a closed state still says why. */}
+          <VendorStalls slug={event.slug} stalls={stalls} currency={currency} closedNote={!ticketed} />
         </aside>
       </Container>
 
       {/* Mobile purchase bar. Fixed rather than in-flow so it survives a long
        * description without the buyer having to scroll back for the CTA. The
        * desktop equivalent is the sticky rail above. */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur lg:hidden">
-        <Container className="flex items-center gap-4 py-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-helper text-text-faint">Tickets</p>
-            <p className="truncate text-body font-bold text-text">
-              {canBuy && from !== null ? `from ${money(from, currency)}` : blockedReason}
-            </p>
-          </div>
-          {canBuy ? (
-            <ButtonLink
-              href={`/events/${event.slug}/checkout`}
-              className="min-w-[168px]"
-            >
-              Get tickets
+      {ticketed ? (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur lg:hidden">
+          <Container className="flex items-center gap-4 py-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-helper text-text-faint">Tickets</p>
+              <p className="truncate text-body font-bold text-text">
+                {canBuy && from !== null ? `from ${money(from, currency)}` : blockedReason}
+              </p>
+            </div>
+            {canBuy ? (
+              <ButtonLink
+                href={`/events/${event.slug}/checkout`}
+                className="min-w-[168px]"
+              >
+                Get tickets
+              </ButtonLink>
+            ) : saleOpen ? null : (
+              <span className="inline-flex h-14 min-w-[168px] items-center justify-center rounded-control bg-surface px-6 text-body font-bold text-text-faint">
+                Unavailable
+              </span>
+            )}
+          </Container>
+        </div>
+      ) : vendorsOpen ? (
+        // A vendors-only event's one action, in the same place.
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur lg:hidden">
+          <Container className="flex items-center gap-4 py-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-helper text-text-faint">Vendors</p>
+              <p className="truncate text-body font-bold text-text">Stalls available</p>
+            </div>
+            <ButtonLink href={`/events/${event.slug}/apply`} className="min-w-[168px]">
+              Apply for a stall
             </ButtonLink>
-          ) : saleOpen ? null : (
-            <span className="inline-flex h-14 min-w-[168px] items-center justify-center rounded-control bg-surface px-6 text-body font-bold text-text-faint">
-              Unavailable
-            </span>
-          )}
-        </Container>
-      </div>
+          </Container>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -46,5 +46,12 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/host/:path*", "/door/:path*", "/admin/:path*"],
+  matcher: [
+    "/account/:path*",
+    "/host/:path*",
+    "/door/:path*",
+    "/admin/:path*",
+    // A vendor's application page — the link in every vendor email.
+    "/vendor-applications/:path*",
+  ],
 };
