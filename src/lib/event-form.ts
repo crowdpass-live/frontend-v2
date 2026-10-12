@@ -195,7 +195,9 @@ export function validate(d: EventDraft, now = Date.now()): DraftErrors {
     errors.end = "Must be at least a day after the start";
   }
 
-  if (d.tiers.length < 1) errors.tiers = "Add at least one ticket type";
+  // Zero is allowed: a vendors-only event sells stalls here and its tickets
+  // elsewhere. Publishing then needs an active stall type, which the API
+  // checks and explains.
   if (d.tiers.length > LIMITS.tiers) errors.tiers = `At most ${LIMITS.tiers} ticket types`;
   const names = new Set<string>();
   for (const t of d.tiers) {
@@ -252,7 +254,8 @@ export function toPayload(d: EventDraft, mode: "create" | "edit") {
     purchaseStartTime:
       mode === "edit" && d.purchaseStartTime ? d.purchaseStartTime : new Date().toISOString(),
     // The backend demands every price be 0 when isFree, and ≥500 otherwise.
-    isFree: prices.every((p) => p === 0),
+    // With no ticket types at all it is not a free event, just a ticketless one.
+    isFree: prices.length > 0 && prices.every((p) => p === 0),
     isRefundable: d.isRefundable,
     ...(mode === "create" && d.chain ? { chain: d.chain } : {}),
     ticketTypes: d.tiers.map((t) => ({

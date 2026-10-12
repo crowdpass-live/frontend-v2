@@ -154,6 +154,21 @@ function saleCloseTime(event: {
   return Number.isNaN(end) ? new Date(event.startTime).getTime() : end;
 }
 
+/**
+ * Whether an event sells tickets here at all. False for a vendors-only event
+ * (#55), whose `minPrice` of 0 must never read as "Free". `hasTickets` comes
+ * from the API; the ticket-type count is the fallback for an older backend.
+ */
+export function sellsTickets(event: {
+  hasTickets?: boolean;
+  ticketTypes?: unknown[] | null;
+}): boolean {
+  return event.hasTickets ?? (event.ticketTypes?.length ?? 0) > 0;
+}
+
+/** What a vendors-only event shows where a price would go. */
+export const VENDORS_ONLY = "Vendors only";
+
 export function saleWindow(
   event: {
     startTime: string;

@@ -92,6 +92,15 @@ export interface ApiEvent {
   status: string;
   ticketTypes: ApiTicketType[];
   organizer: { id: string; firstName: string | null; lastName: string | null };
+  /**
+   * False for a vendors-only event (no ticket types): its `minPrice` of 0
+   * then means "no tickets here", never "Free". Optional because a backend
+   * that predates it omits it; read it through `sellsTickets()`.
+   */
+  hasTickets?: boolean;
+  /** The organizer's switch; `acceptingApplications` (stall-types read) is the truth. */
+  vendorRegistrationOpen?: boolean;
+  vendorRegistrationClosesAt?: string | null;
 }
 
 /**
@@ -871,4 +880,89 @@ export interface ApiOrganizerCountry {
   /** ISO-4217 — every event this organizer creates is priced in it. */
   currency: string;
   kycIdTypes: KycIdType[];
+}
+
+// ---------------------------------------------------------------------------
+// Vendors — stalls, registration, applications
+// ---------------------------------------------------------------------------
+
+/** `GET|POST|PATCH /organizer/events/:eventId/stall-types`. Money in naira. */
+export interface ApiStallType {
+  id: string;
+  eventId: string;
+  name: string;
+  description: string | null;
+  price: number;
+  quantity: number;
+  /** Held by approved applications; taken at approval, not payment. */
+  allocatedCount: number;
+  remaining: number;
+  passesPerStall: number;
+  /** Inactive (retired) types keep their applications but take no new ones. */
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * `PATCH /organizer/events/:eventId/vendor-registration`. `open` is the
+ * switch; a passed `closesAt` closes registration too, so display
+ * `acceptingApplications`.
+ */
+export interface ApiVendorRegistration {
+  open: boolean;
+  closesAt: string | null;
+  acceptingApplications: boolean;
+}
+
+export type VendorApplicationStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "WITHDRAWN"
+  | "CANCELLED";
+
+export type VendorPaymentStatus = "UNPAID" | "PAID";
+
+/** One shape, organizer- and vendor-side alike. */
+export interface ApiVendorApplication {
+  id: string;
+  event: { id: string; name: string; slug: string; startTime: string; venue: string | null };
+  stallType: { id: string; name: string; price: number };
+  userId: string;
+  businessName: string;
+  contactName: string;
+  email: string;
+  /** E.164. */
+  phone: string;
+  category: string | null;
+  description: string | null;
+  marketingOptIn: boolean;
+  status: VendorApplicationStatus;
+  paymentStatus: VendorPaymentStatus;
+  /** What the vendor owes, locked at approval; null before. */
+  priceAtApproval: number | null;
+  /** Shown, never enforced: an approved vendor can pay late until cancelled. */
+  paymentDueAt: string | null;
+  paidAt: string | null;
+  reviewedAt: string | null;
+  /** The rejection reason, or the (optional) cancellation reason. */
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * `GET /organizer/events/:eventId/vendors`. `summary` always covers the
+ * whole event, whatever the filters, so tab counts stay right.
+ */
+export interface ApiVendorApplications {
+  applications: ApiVendorApplication[];
+  summary: {
+    total: number;
+    byStatus: Record<VendorApplicationStatus, number>;
+    byPaymentStatus: Record<VendorPaymentStatus, number>;
+  };
+  pagination: Pagination;
 }
