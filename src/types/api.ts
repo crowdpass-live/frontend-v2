@@ -92,6 +92,15 @@ export interface ApiEvent {
   status: string;
   ticketTypes: ApiTicketType[];
   organizer: { id: string; firstName: string | null; lastName: string | null };
+  /**
+   * False for a vendors-only event (no ticket types): its `minPrice` of 0
+   * then means "no tickets here", never "Free". Optional because a backend
+   * that predates it omits it; read it through `sellsTickets()`.
+   */
+  hasTickets?: boolean;
+  /** The organizer's switch; `acceptingApplications` (stall-types read) is the truth. */
+  vendorRegistrationOpen?: boolean;
+  vendorRegistrationClosesAt?: string | null;
 }
 
 /**
@@ -887,4 +896,136 @@ export interface ApiOrganizerCountry {
   /** ISO-4217 — every event this organizer creates is priced in it. */
   currency: string;
   kycIdTypes: KycIdType[];
+}
+
+// ---------------------------------------------------------------------------
+// Vendors — stalls, registration, applications
+// ---------------------------------------------------------------------------
+
+/** `GET|POST|PATCH /organizer/events/:eventId/stall-types`. Money in naira. */
+export interface ApiStallType {
+  id: string;
+  eventId: string;
+  name: string;
+  description: string | null;
+  price: number;
+  quantity: number;
+  /** Held by approved applications; taken at approval, not payment. */
+  allocatedCount: number;
+  remaining: number;
+  passesPerStall: number;
+  /** Inactive (retired) types keep their applications but take no new ones. */
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * `PATCH /organizer/events/:eventId/vendor-registration`. `open` is the
+ * switch; a passed `closesAt` closes registration too, so display
+ * `acceptingApplications`.
+ */
+export interface ApiVendorRegistration {
+  open: boolean;
+  closesAt: string | null;
+  acceptingApplications: boolean;
+}
+
+export type VendorApplicationStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "WITHDRAWN"
+  | "CANCELLED";
+
+export type VendorPaymentStatus = "UNPAID" | "PAID";
+
+/** One shape, organizer- and vendor-side alike. */
+export interface ApiVendorApplication {
+  id: string;
+  event: { id: string; name: string; slug: string; startTime: string; venue: string | null };
+  stallType: { id: string; name: string; price: number };
+  userId: string;
+  businessName: string;
+  contactName: string;
+  email: string;
+  /** E.164. */
+  phone: string;
+  category: string | null;
+  description: string | null;
+  marketingOptIn: boolean;
+  status: VendorApplicationStatus;
+  paymentStatus: VendorPaymentStatus;
+  /** What the vendor owes, locked at approval; null before. */
+  priceAtApproval: number | null;
+  /** Shown, never enforced: an approved vendor can pay late until cancelled. */
+  paymentDueAt: string | null;
+  paidAt: string | null;
+  reviewedAt: string | null;
+  /** The rejection reason, or the (optional) cancellation reason. */
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * `GET /organizer/events/:eventId/vendors`. `summary` always covers the
+ * whole event, whatever the filters, so tab counts stay right.
+ */
+export interface ApiVendorApplications {
+  applications: ApiVendorApplication[];
+  summary: {
+    total: number;
+    byStatus: Record<VendorApplicationStatus, number>;
+    byPaymentStatus: Record<VendorPaymentStatus, number>;
+  };
+  pagination: Pagination;
+}
+
+/** `GET /events/:slug/stall-types` — public; published events only (else 404). */
+export interface ApiPublicStalls {
+  eventId: string;
+  registration: ApiVendorRegistration;
+  /** Active types only. */
+  stallTypes: {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    passesPerStall: number;
+    remaining: number;
+  }[];
+}
+
+/** A vendor's door pass. The QR is the bare `CROWDPASS_VND_…` reference. */
+export interface ApiVendorPass {
+  reference: string;
+  holderName: string | null;
+  /** CONFIRMED while valid — it stays so after scans (re-entry is allowed). */
+  status: TicketStatus;
+  firstCheckedInAt: string | null;
+  lastCheckedInAt: string | null;
+  checkInCount: number;
+  /** A PNG data URL. */
+  qrDataUrl: string;
+}
+
+/** `GET /vendor-applications/:id` — the vendor's own; anyone else's is a 404. */
+export interface ApiVendorApplicationDetail extends ApiVendorApplication {
+  /** Empty until paid (or approved, for a free stall). */
+  passes: ApiVendorPass[];
+  /** The vendor's own ticket link; null before approval. */
+  referralLink: { code: string; url: string; status: "ACTIVE" | "DISABLED" } | null;
+}
+
+/** `POST /vendor-applications/:id/pay`. Redirect to `checkoutUrl`. */
+export interface ApiVendorPayResult {
+  reference: string;
+  checkoutUrl: string;
+  amount: number;
+  platformFee: number;
+  organizerAmount: number;
+  currency: string;
+  provider: PaymentProvider;
 }

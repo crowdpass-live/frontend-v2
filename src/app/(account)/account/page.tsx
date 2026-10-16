@@ -105,6 +105,17 @@ export default async function AccountPage({
             <ChevronRightIcon className="text-text-faint" />
           </Link>
 
+          <Link
+            href="/account/vendor-applications"
+            className="-mt-4 flex items-center justify-between gap-3 rounded-card border border-border bg-surface px-5 py-4 transition-colors hover:bg-surface-strong"
+          >
+            <span className="flex min-w-0 flex-col">
+              <span className="text-body font-medium text-text">My stall applications</span>
+              <span className="text-helper text-text-faint">Selling at an event? Pay and get your door passes here.</span>
+            </span>
+            <ChevronRightIcon className="shrink-0 text-text-faint" />
+          </Link>
+
           <section aria-labelledby="hosting-heading" className="flex flex-col gap-3">
             <h2 id="hosting-heading" className="text-section font-bold text-text">Hosting</h2>
             <div className="flex flex-col gap-4 rounded-card border border-accent-tint-border bg-linear-to-br from-accent/45 to-accent-tint p-5">
