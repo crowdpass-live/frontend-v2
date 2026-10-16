@@ -243,18 +243,25 @@ export function EventForm({
           note={allFree ? "Every ticket is ₦0, so this is a free event." : "Set a ticket to ₦0 to make it free."}
         >
           {errors.tiers ? <p role="alert" className="text-helper text-danger">{errors.tiers}</p> : null}
-          <ol className="flex flex-col gap-3">
-            {draft.tiers.map((t, i) => {
-              const te = errors.tier[t.key] ?? {};
-              const locked = !!t.soldCount;
-              return (
-                <li key={t.key} className="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-label font-bold text-text">
-                      Ticket type {i + 1}
-                      {t.claimOnly ? <span className="font-normal text-text-faint"> · members only</span> : null}
-                    </span>
-                    {draft.tiers.length > 1 ? (
+          {draft.tiers.length === 0 ? (
+            <p className="rounded-control border border-dashed border-border px-4 py-3 text-label text-text-dim">
+              No tickets — a vendors-only event. Selling tickets somewhere else?
+              Save it like this, then add stalls on the event&apos;s Vendors tab
+              before you publish.
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-3">
+              {draft.tiers.map((t, i) => {
+                const te = errors.tier[t.key] ?? {};
+                const locked = !!t.soldCount;
+                return (
+                  <li key={t.key} className="flex flex-col gap-4 rounded-card border border-border bg-surface p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-label font-bold text-text">
+                        Ticket type {i + 1}
+                        {t.claimOnly ? <span className="font-normal text-text-faint"> · members only</span> : null}
+                      </span>
+                      {/* The last one can go too: a vendors-only event has none. */}
                       <Button
                         type="button"
                         size="sm"
@@ -267,50 +274,50 @@ export function EventForm({
                       >
                         Remove
                       </Button>
-                    ) : null}
-                  </div>
-                  <TextField
-                    label="Name"
-                    value={t.name}
-                    onChange={(e) => setTier(t.key, { name: e.target.value })}
-                    maxLength={LIMITS.tierName}
-                    placeholder="e.g. Regular, VIP, Early bird"
-                    error={te.name}
-                    disabled={busy}
-                  />
-                  <div className="grid grid-cols-2 gap-3">
+                    </div>
                     <TextField
-                      label="Price (₦)"
-                      inputMode="decimal"
-                      value={t.price}
-                      onChange={(e) => setTier(t.key, { price: e.target.value.replace(/[^\d.]/g, "") })}
-                      placeholder="0 = free"
-                      error={te.price}
+                      label="Name"
+                      value={t.name}
+                      onChange={(e) => setTier(t.key, { name: e.target.value })}
+                      maxLength={LIMITS.tierName}
+                      placeholder="e.g. Regular, VIP, Early bird"
+                      error={te.name}
                       disabled={busy}
                     />
+                    <div className="grid grid-cols-2 gap-3">
+                      <TextField
+                        label="Price (₦)"
+                        inputMode="decimal"
+                        value={t.price}
+                        onChange={(e) => setTier(t.key, { price: e.target.value.replace(/[^\d.]/g, "") })}
+                        placeholder="0 = free"
+                        error={te.price}
+                        disabled={busy}
+                      />
+                      <TextField
+                        label="Quantity"
+                        inputMode="numeric"
+                        value={t.quantity}
+                        onChange={(e) => setTier(t.key, { quantity: e.target.value.replace(/\D/g, "") })}
+                        placeholder="e.g. 100"
+                        error={te.quantity}
+                        disabled={busy}
+                      />
+                    </div>
                     <TextField
-                      label="Quantity"
+                      label="Max per person (optional)"
                       inputMode="numeric"
-                      value={t.quantity}
-                      onChange={(e) => setTier(t.key, { quantity: e.target.value.replace(/\D/g, "") })}
-                      placeholder="e.g. 100"
-                      error={te.quantity}
+                      value={t.maxPerUser}
+                      onChange={(e) => setTier(t.key, { maxPerUser: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+                      placeholder="5"
+                      error={te.maxPerUser}
                       disabled={busy}
                     />
-                  </div>
-                  <TextField
-                    label="Max per person (optional)"
-                    inputMode="numeric"
-                    value={t.maxPerUser}
-                    onChange={(e) => setTier(t.key, { maxPerUser: e.target.value.replace(/\D/g, "").slice(0, 2) })}
-                    placeholder="5"
-                    error={te.maxPerUser}
-                    disabled={busy}
-                  />
-                </li>
-              );
-            })}
-          </ol>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
           {draft.tiers.length < LIMITS.tiers ? (
             <Button
               type="button"
@@ -461,9 +468,11 @@ function EventPreview({ draft, hydrated }: { draft: EventDraft; hydrated: boolea
         <div className="flex items-end justify-between gap-3 border-t border-border pt-3">
           <div>
             <p className="text-helper text-text-faint">
-              {draft.tiers.length} ticket type{draft.tiers.length === 1 ? "" : "s"}
+              {draft.tiers.length
+                ? `${draft.tiers.length} ticket type${draft.tiers.length === 1 ? "" : "s"}`
+                : "Vendors only"}
             </p>
-            <p className="text-body font-bold text-text">{priceLine}</p>
+            <p className="text-body font-bold text-text">{draft.tiers.length ? priceLine : "No tickets here"}</p>
           </div>
           {capacity ? (
             <p className="text-helper text-text-faint">{capacity.toLocaleString("en-NG")} tickets</p>
