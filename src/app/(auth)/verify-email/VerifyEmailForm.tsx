@@ -100,7 +100,7 @@ export function VerifyEmailForm({
         pose="success"
       >
         <div className="flex flex-col gap-3">
-          <ButtonLink href={next ?? "/"} replace className="w-full">
+          <ButtonLink href={next ?? "/events"} replace className="w-full">
             {next ? "Continue" : "Browse events"}
           </ButtonLink>
           <p className="text-label text-text-dim">

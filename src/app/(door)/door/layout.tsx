@@ -32,7 +32,7 @@ export default async function DoorLayout({
           Your live events show up here, and so do events where an organizer
           has added you to their check-in team.
         </p>
-        <ButtonLink href="/" variant="secondary" className="w-full sm:w-auto">
+        <ButtonLink href="/events" variant="secondary" className="w-full sm:w-auto">
           Browse events
         </ButtonLink>
       </Container>

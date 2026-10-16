@@ -12,6 +12,12 @@ import Image from "next/image";
  *
  * `no-tickets` is the one exception: that illustration carries no caption, so
  * the skill's SVG is used directly and scales cleanly.
+ *
+ * `got-ticket`, `thinking` and `vip` have no mobile crop. They are the
+ * skill's rasters lifted out of their SVG wrappers with the baked caption cut
+ * off the bottom ("Got a ticket!", "Hmm…", "VIP vibes!") and the empty margin
+ * trimmed — art only, same as the mobile set. Replace them when design
+ * delivers caption-free exports (open issue #13).
  */
 const ART = {
   success: { src: "/mascots/success.png", w: 305, h: 494 },
@@ -20,6 +26,9 @@ const ART = {
   love: { src: "/mascots/love.png", w: 296, h: 427 },
   "lets-go": { src: "/mascots/lets-go.png", w: 397, h: 415 },
   "no-tickets": { src: "/mascots/no-tickets.svg", w: 210, h: 175 },
+  "got-ticket": { src: "/mascots/got-ticket.png", w: 342, h: 413 },
+  thinking: { src: "/mascots/thinking.png", w: 199, h: 335 },
+  vip: { src: "/mascots/vip.png", w: 266, h: 336 },
 } as const;
 
 export type MascotPose = keyof typeof ART;

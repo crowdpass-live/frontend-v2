@@ -140,6 +140,22 @@ export interface ApiEventList {
   };
 }
 
+/**
+ * `GET /stats/public` — platform counts for the landing page. Counts only;
+ * money stays behind the admin endpoints. All-time, cached 5 min server-side.
+ */
+export interface ApiPublicStats {
+  /** PUBLISHED + COMPLETED events. */
+  eventsHosted: number;
+  /** CONFIRMED + USED tickets — the admin dashboard's "sold". */
+  ticketsSold: number;
+  /** Tickets scanned in at a door. */
+  checkIns: number;
+  /** Users with the ORGANIZER role. */
+  hosts: number;
+  generatedAt: string;
+}
+
 // ---------------------------------------------------------------------------
 // Payments
 // ---------------------------------------------------------------------------

@@ -30,7 +30,7 @@ export default async function MyVendorApplicationsPage() {
             You haven&apos;t applied for a stall yet. Events taking vendors show a
             “Vendor stalls” section on their page.
           </p>
-          <ButtonLink href="/" variant="secondary" size="sm" className="w-full sm:w-auto">
+          <ButtonLink href="/events" variant="secondary" size="sm" className="w-full sm:w-auto">
             Browse events
           </ButtonLink>
         </div>

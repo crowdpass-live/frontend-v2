@@ -15,7 +15,8 @@ explains *why* things are the way they are.
 
 ```
 (site)     guest, no account
-/                                  discover         search · category · location
+/                                  landing          hero · next 6 events · for hosts
+/events                            discover         search · category · location
 /events/[slug]                     event detail     server-rendered, OG-scrapeable
 /events/[slug]/checkout            checkout         tier · quantity · details · rail
 /checkout/callback                 fiat return      polls settlement → 3 states
@@ -91,10 +92,15 @@ is exactly one way to be signed in.
   every 401, server or browser, goes through one route that clears the cookie
   and comes back via `?next=`.
 
-## Discover (`/`)
+## Discover (`/events`)
 
 Filters live in the URL (`?search=&category=&location=&page=`), so a filtered
 view is shareable, survives the back button, and is fetched server-side.
+
+Discover used to be `/`. The landing page now owns that URL, and redirects
+any `/?search=…`, `?category=…`, `?location=…` or `?page=…` to `/events` with
+the same query, so filtered links already shared on WhatsApp and flyers keep
+working.
 
 Two things it has to do that the API does not:
 

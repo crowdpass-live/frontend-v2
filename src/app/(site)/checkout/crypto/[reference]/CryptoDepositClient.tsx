@@ -138,7 +138,7 @@ export function CryptoDepositClient({ reference }: { reference: string }) {
           Don&apos;t send USDC to this address. If you already did, contact
           support with reference <span className="font-mono text-text">{reference}</span>.
         </p>
-        <ButtonLink href="/" variant="secondary" className="w-full sm:w-auto">
+        <ButtonLink href="/events" variant="secondary" className="w-full sm:w-auto">
           Back to events
         </ButtonLink>
       </Container>
@@ -359,7 +359,7 @@ function NoDeposit({
         {checking ? <Spinner /> : null}
         Check payment status
       </Button>
-      <ButtonLink href="/" variant="ghost" className="w-full sm:w-auto">
+      <ButtonLink href="/events" variant="ghost" className="w-full sm:w-auto">
         Back to events
       </ButtonLink>
     </Container>
