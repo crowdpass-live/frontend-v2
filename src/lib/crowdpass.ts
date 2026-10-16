@@ -8,6 +8,7 @@ import type {
   ApiFiatMethod,
   ApiCryptoMethod,
   ApiPaymentMethods,
+  ApiPublicStats,
   ApiPurchaseResult,
   ApiTicket,
   ApiVerifyResult,
@@ -83,6 +84,17 @@ export function fetchUpcomingEvents(
 export function fetchEventBySlug(slug: string): Promise<ApiEvent> {
   return apiFetch<ApiEvent>(`/events/${encodeURIComponent(slug)}`, {
     next: { revalidate: 30, tags: [`event:${slug}`] },
+  });
+}
+
+/**
+ * `GET /stats/public` — the landing page's "by the numbers". The backend
+ * caches it for five minutes, so revalidating faster would only re-fetch the
+ * same figures.
+ */
+export function fetchPublicStats(): Promise<ApiPublicStats> {
+  return apiFetch<ApiPublicStats>("/stats/public", {
+    next: { revalidate: 300 },
   });
 }
 

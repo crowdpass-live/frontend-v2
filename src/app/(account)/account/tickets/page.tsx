@@ -101,7 +101,7 @@ function EmptyTickets() {
           Tickets you buy while signed in show up here.
         </p>
       </div>
-      <ButtonLink href="/" className="w-full sm:w-auto">
+      <ButtonLink href="/events" className="w-full sm:w-auto">
         Find an event
       </ButtonLink>
     </div>

@@ -18,6 +18,9 @@ import { AccountSlot } from "./account/AccountMenu";
  * render per request. The part that needs the API streams in behind
  * Suspense, so a cold backend never delays the event page itself.
  */
+const NAV_LINK =
+  "inline-flex min-h-10 items-center whitespace-nowrap rounded-full px-3 text-label font-medium text-text-dim transition-colors hover:bg-surface hover:text-text sm:px-4";
+
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-bg/80 backdrop-blur-md">
@@ -33,11 +36,16 @@ export function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-2">
-          <Link
-            href="/"
-            className="inline-flex min-h-10 items-center whitespace-nowrap rounded-full px-3 text-label font-medium text-text-dim transition-colors hover:bg-surface hover:text-text sm:px-4"
-          >
+          <Link href="/events" className={NAV_LINK}>
             Browse events
+          </Link>
+          {/* From `sm` up only: at 320px the bar already holds the mark,
+           * "Browse events" and the account slot, and the landing page puts
+           * "Host an event" a thumb's reach below anyway. `max-sm:hidden`
+           * rather than `hidden sm:inline-flex`: a bare `hidden` loses to
+           * NAV_LINK's `inline-flex` on stylesheet order. */}
+          <Link href="/host" className={`${NAV_LINK} max-sm:hidden`}>
+            Host an event
           </Link>
           <AccountSlot />
         </nav>
