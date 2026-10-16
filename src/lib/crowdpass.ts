@@ -96,6 +96,10 @@ export function fetchEventBySlug(slug: string): Promise<ApiEvent> {
 export function fetchPublicStats(): Promise<ApiPublicStats> {
   return apiFetch<ApiPublicStats>("/stats/public", {
     next: { revalidate: 300 },
+  });
+}
+
+/**
  * `GET /events/:slug/stall-types` — the vendor section of the event page.
  * Short-lived cache: `remaining` moves as the organizer approves vendors.
  */
