@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CoverImage } from "./CoverImage";
-import { formatDate, formatTime, money } from "@/lib/format";
+import { VENDORS_ONLY, formatDate, formatTime, money, sellsTickets } from "@/lib/format";
 import type { ApiEventListItem } from "@/types/api";
 
 /**
@@ -23,8 +23,12 @@ function whenTag(iso: string): string {
   return `${day} · ${time}`;
 }
 
-/** `"from ₦8,000"`, or `"Free"`. Uses the list endpoint's computed minPrice. */
+/**
+ * `"from ₦8,000"`, or `"Free"`. Uses the list endpoint's computed minPrice —
+ * which is also 0 for a vendors-only event, where it means "no tickets".
+ */
 function priceLabel(event: ApiEventListItem): string {
+  if (!sellsTickets(event)) return VENDORS_ONLY;
   const from = money(event.minPrice, event.currency || "NGN");
   return from === "Free" ? "Free" : `from ${from}`;
 }
@@ -41,7 +45,7 @@ function priceLabel(event: ApiEventListItem): string {
  * pushing everything below it off the first screen.
  */
 export function FeaturedEventCard({ event }: { event: ApiEventListItem }) {
-  const soldOut = event.totalAvailable <= 0;
+  const soldOut = sellsTickets(event) && event.totalAvailable <= 0;
   const where = [event.venue, event.location].filter(Boolean).join(" · ");
 
   return (
@@ -107,13 +111,16 @@ export function FeaturedEventCard({ event }: { event: ApiEventListItem }) {
  * it costs less than a second component that drifts out of sync.
  */
 export function EventCard({ event }: { event: ApiEventListItem }) {
-  const soldOut = event.totalAvailable <= 0;
+  const ticketed = sellsTickets(event);
+  const soldOut = ticketed && event.totalAvailable <= 0;
   const meta = [formatDate(event.startTime), event.venue]
     .filter(Boolean)
     .join(" · ");
-  const price = soldOut
-    ? "Sold out"
-    : money(event.minPrice, event.currency || "NGN");
+  const price = !ticketed
+    ? VENDORS_ONLY
+    : soldOut
+      ? "Sold out"
+      : money(event.minPrice, event.currency || "NGN");
   const priceTone = soldOut ? "text-text-faint" : "text-text";
 
   return (

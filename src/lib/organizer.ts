@@ -21,8 +21,13 @@ import type {
   ApiOrganizerEvents,
   ApiPayouts,
   ApiTicketAdmin,
+  ApiStallType,
+  ApiVendorApplications,
+  ApiVendorRegistration,
   EventStatus,
   TicketStatus,
+  VendorApplicationStatus,
+  VendorPaymentStatus,
 } from "@/types/api";
 
 /**
@@ -282,18 +287,20 @@ export async function fetchEventControls(eventId: string): Promise<{
 }
 
 /**
- * An event's ticket types, with ids and `claimOnly` — the same sources
- * mobile's `fetchOwnEventTiers` uses: the public event for a published
- * event, the drafts list for a draft. Ended and cancelled events have no
- * readable source, and their lists no longer matter: returns null.
+ * One of the caller's events in full (ticket types with ids and
+ * `claimOnly`, the vendor-registration fields) — from the same sources
+ * mobile's `fetchOwnEventTiers` uses: the public event when published, the
+ * drafts list when a draft. Ended and cancelled events have no readable
+ * source: `event` is null. Null overall if it isn't theirs.
  *
  * Uncached on purpose. The public read elsewhere revalidates every 30s,
  * which would show a tier as still on sale right after its first upload.
  */
-export async function fetchOwnTicketTypes(eventId: string): Promise<{
+export const fetchOwnEventDetail = cache(async (eventId: string): Promise<{
   status: EventStatus;
-  ticketTypes: ApiTicketType[];
-} | null> {
+  slug: string;
+  event: (ApiEvent & { ticketTypes: ApiTicketType[] }) | null;
+} | null> => {
   const own = await findOwnEvent(eventId);
   if (!own) return null;
 
@@ -302,17 +309,23 @@ export async function fetchOwnTicketTypes(eventId: string): Promise<{
       cache: "no-store",
       timeout: 45_000,
     });
-    return { status: own.status, ticketTypes: event.ticketTypes };
+    return { status: own.status, slug: own.slug, event };
   }
   if (own.status === "DRAFT") {
-    const drafts = await serverFetch<(ApiEvent & { ticketTypes: ApiTicketType[] })[]>(
-      "/events/me/drafts",
-      { timeout: 45_000 },
-    );
-    const draft = drafts.find((d) => d.id === eventId);
-    return draft ? { status: own.status, ticketTypes: draft.ticketTypes } : null;
+    const draft = await fetchOwnDraft(eventId);
+    return draft ? { status: own.status, slug: own.slug, event: draft } : null;
   }
-  return { status: own.status, ticketTypes: [] };
+  return { status: own.status, slug: own.slug, event: null };
+});
+
+/** An event's ticket types (see `fetchOwnEventDetail`); none once it's over. */
+export async function fetchOwnTicketTypes(eventId: string): Promise<{
+  status: EventStatus;
+  ticketTypes: ApiTicketType[];
+} | null> {
+  const own = await fetchOwnEventDetail(eventId);
+  if (!own) return null;
+  return { status: own.status, ticketTypes: own.event?.ticketTypes ?? [] };
 }
 
 /** `GET /events/chains` — public; the create form's settlement-chain options. */
@@ -361,6 +374,78 @@ export function fetchTicketAdmins(eventId: string) {
 export function fetchBeneficiaries(eventId: string) {
   return serverFetch<ApiBeneficiaries>(
     `/organizer/events/${encodeURIComponent(eventId)}/beneficiaries`,
+    { timeout: 45_000 },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Vendors (#42–#44)
+// ---------------------------------------------------------------------------
+
+/** `GET /organizer/events/:eventId/stall-types` — inactive ones included. */
+export function fetchStallTypes(eventId: string) {
+  return serverFetch<ApiStallType[]>(
+    `/organizer/events/${encodeURIComponent(eventId)}/stall-types`,
+    { timeout: 45_000 },
+  );
+}
+
+/**
+ * The registration switch as it stands. There is no organizer read for it,
+ * but the event carries the two columns; `acceptingApplications` applies the
+ * cut-off exactly as the API's `isVendorRegistrationOpen` does. Null for an
+ * ended or cancelled event, whose setup can no longer change.
+ */
+export async function fetchVendorRegistration(eventId: string): Promise<ApiVendorRegistration | null> {
+  const own = await fetchOwnEventDetail(eventId);
+  if (!own?.event) return null;
+  const open = !!own.event.vendorRegistrationOpen;
+  const closesAt = own.event.vendorRegistrationClosesAt ?? null;
+  return {
+    open,
+    closesAt,
+    acceptingApplications: open && (!closesAt || Date.now() < new Date(closesAt).getTime()),
+  };
+}
+
+/** `PaginationDto` caps `limit` at 100. */
+export const VENDORS_PAGE_SIZE = 20;
+
+export const VENDOR_APPLICATION_STATUSES: VendorApplicationStatus[] = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "WITHDRAWN",
+  "CANCELLED",
+];
+
+export function isVendorApplicationStatus(v: unknown): v is VendorApplicationStatus {
+  return VENDOR_APPLICATION_STATUSES.includes(v as VendorApplicationStatus);
+}
+
+export function isVendorPaymentStatus(v: unknown): v is VendorPaymentStatus {
+  return v === "UNPAID" || v === "PAID";
+}
+
+/** `GET /organizer/events/:eventId/vendors` — carries vendor email and phone. */
+export function fetchVendorApplications(
+  eventId: string,
+  query: {
+    status?: VendorApplicationStatus;
+    paymentStatus?: VendorPaymentStatus;
+    stallTypeId?: string;
+    search?: string;
+    page?: number;
+  },
+) {
+  const params = new URLSearchParams({ limit: String(VENDORS_PAGE_SIZE) });
+  if (query.status) params.set("status", query.status);
+  if (query.paymentStatus) params.set("paymentStatus", query.paymentStatus);
+  if (query.stallTypeId) params.set("stallTypeId", query.stallTypeId);
+  if (query.search) params.set("search", query.search);
+  if (query.page && query.page > 1) params.set("page", String(query.page));
+  return serverFetch<ApiVendorApplications>(
+    `/organizer/events/${encodeURIComponent(eventId)}/vendors?${params}`,
     { timeout: 45_000 },
   );
 }

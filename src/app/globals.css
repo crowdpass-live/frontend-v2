@@ -233,3 +233,162 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Landing page (`/`, see app/(site)/page.tsx)
+ * ------------------------------------------------------------------------- */
+
+/* The hero settles in once, on load, a line at a time. Delays are set per
+ * element with `--rise-delay` so the order lives next to the markup. */
+@keyframes rise-in {
+  from {
+    transform: translate3d(0, 14px, 0);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.rise-in {
+  animation: rise-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: var(--rise-delay, 0ms);
+}
+
+/* Sections below the fold ease in as they scroll into view. Scroll-driven
+ * animation is progressive enhancement: a browser without `view()` timelines
+ * (Safari, Firefox today) shows the section as-is, which is the point — the
+ * content must never depend on the motion to become visible. Gated on
+ * `no-preference` rather than overridden afterwards, because the global
+ * reduced-motion rule shortens durations, and a scroll-linked animation has
+ * no duration to shorten. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: rise-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 40%;
+    }
+  }
+}
+
+/* The pass in the hero floats, barely. Transform only, so it stays on the
+ * compositor; the global reduced-motion rule stops it dead. */
+@keyframes pass-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(var(--pass-tilt, 0deg));
+  }
+  50% {
+    transform: translate3d(0, -8px, 0) rotate(var(--pass-tilt, 0deg));
+  }
+}
+
+.pass-float {
+  animation: pass-float 7s ease-in-out infinite;
+}
+
+/* A soft stage light: brand orange falling from above, fading to the page
+ * colour. Mixed from the accent token so a palette change repaints it. */
+.stage-light {
+  background:
+    radial-gradient(
+      55% 60% at 72% 0%,
+      color-mix(in srgb, var(--color-accent) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      40% 40% at 10% 100%,
+      color-mix(in srgb, var(--color-accent) 8%, transparent),
+      transparent 70%
+    );
+  /* Fade out before the section ends, so the light never stops at a hard
+   * line where the next section begins. */
+  mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+
+/* The mascot is drawn with black limbs and outlines for a white page, and on
+ * #08090D they vanish. A thin outline in the text colour, built from four
+ * hard drop-shadows, turns it into a sticker that reads on any dark surface
+ * without redrawing the art. */
+.mascot-sticker {
+  filter: drop-shadow(1.5px 0 0 var(--color-text))
+    drop-shadow(-1.5px 0 0 var(--color-text))
+    drop-shadow(0 1.5px 0 var(--color-text))
+    drop-shadow(0 -1.5px 0 var(--color-text))
+    drop-shadow(0 18px 24px rgb(0 0 0 / 0.45));
+}
+
+/* A small idle bob, so the mascot feels alive rather than pasted on. */
+@keyframes mascot-bob {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0);
+  }
+}
+
+.mascot-bob {
+  animation: mascot-bob 4.5s ease-in-out infinite;
+  animation-delay: var(--bob-delay, 0ms);
+}
+
+/* Partners marquee (components/landing/Partners.tsx).
+ *
+ * `overflow: hidden`, never scroll: the track is wider than the screen by
+ * design, and clipping it is what keeps the page itself from scrolling
+ * sideways. The edges fade out so tiles slide in rather than appear cut. */
+.marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+@keyframes marquee {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 48s) linear infinite;
+}
+
+/* Hold still while someone is reading a tile or tabbing through. */
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+/* Reduced motion gets a still, wrapped wall of tiles, not a marquee frozen
+ * mid-slide with half a tile hanging off each edge. */
+@media (prefers-reduced-motion: reduce) {
+  /* Still, it's ordinary content again, so it gets the page's gutter. */
+  .marquee {
+    mask-image: none;
+    padding-inline: 1.25rem;
+  }
+  .marquee-track {
+    animation: none;
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.75rem;
+  }
+  /* Each list is `shrink-0` for the marquee, which would keep it one tile
+   * wide-row long; it has to take the row's width before it can wrap. */
+  .marquee-track > ul {
+    width: 100%;
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.75rem;
+  }
+  .marquee-copy {
+    display: none !important;
+  }
+}

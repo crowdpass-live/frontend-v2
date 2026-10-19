@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { cx } from "@/components/ui";
 
-/** The event control room's sections. Grows with #42, #43 and #48. */
+/** The event control room's sections. */
 export function EventTabs({ eventId }: { eventId: string }) {
   const pathname = usePathname();
   const activeRef = useRef<HTMLAnchorElement>(null);
@@ -21,6 +21,8 @@ export function EventTabs({ eventId }: { eventId: string }) {
     { href: base, label: "Overview" },
     { href: `${base}/attendees`, label: "Attendees" },
     { href: `${base}/members`, label: "Member lists" },
+    // Applications and stall setup live under it as their own pages.
+    { href: `${base}/vendors`, label: "Vendors", section: true },
     { href: `${base}/revenue-sharing`, label: "Revenue sharing" },
     { href: `${base}/team`, label: "Check-in team" },
     // Opens the door console (its own shell) — an organizer may always scan
@@ -31,7 +33,8 @@ export function EventTabs({ eventId }: { eventId: string }) {
     <nav aria-label="Event sections" className="-mx-5 scroll-px-5 overflow-x-auto px-5 sm:mx-0 sm:scroll-px-0 sm:px-0">
       <ul className="flex w-max gap-1 border-b border-border">
         {tabs.map((tab) => {
-          const active = pathname === tab.href;
+          const active =
+            pathname === tab.href || (!!tab.section && pathname.startsWith(`${tab.href}/`));
           return (
             <li key={tab.href}>
               <Link
