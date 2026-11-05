@@ -1029,3 +1029,65 @@ export interface ApiVendorPayResult {
   currency: string;
   provider: PaymentProvider;
 }
+
+// ---------------------------------------------------------------------------
+// Referral links (#48–#51)
+// ---------------------------------------------------------------------------
+
+/** VENDOR links are created automatically on approval, never by hand. */
+export type ReferralLinkKind = "VENDOR" | "INFLUENCER" | "PROMOTER" | "PARTNER" | "OTHER";
+export type ReferralLinkStatus = "ACTIVE" | "DISABLED";
+
+/** `GET|POST|PATCH /organizer/events/:eventId/referral-links`. */
+export interface ApiReferralLink {
+  id: string;
+  eventId: string;
+  /** 8 characters, immutable — it may already be printed on a flyer. */
+  code: string;
+  /** The share link, `<app>/r/<code>`. */
+  url: string;
+  label: string;
+  kind: ReferralLinkKind;
+  status: ReferralLinkStatus;
+  vendorApplicationId: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  /** Its own expiry; null means "until the event ends". */
+  expiresAt: string | null;
+  /** What to display: its own expiry, or the event end. */
+  effectiveExpiresAt: string;
+  /** Visits to /r/<code>. Informational only. */
+  clickCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiReferralTally {
+  orders: number;
+  tickets: number;
+  /** Gross naira — what buyers paid. */
+  revenue: number;
+}
+
+/**
+ * `GET /organizer/events/:eventId/referrals/stats`. Every link is listed,
+ * zero sales included; `links` plus `unattributed` add up to `totals`.
+ */
+export interface ApiReferralStats {
+  eventId: string;
+  totals: ApiReferralTally;
+  attributed: ApiReferralTally;
+  unattributed: ApiReferralTally;
+  /** Ranked by tickets, then revenue. */
+  links: ({
+    rank: number;
+    id: string;
+    code: string;
+    url: string;
+    label: string;
+    kind: ReferralLinkKind;
+    status: ReferralLinkStatus;
+    clicks: number;
+  } & ApiReferralTally)[];
+}

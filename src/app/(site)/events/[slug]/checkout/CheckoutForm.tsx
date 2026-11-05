@@ -8,6 +8,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { ApiError } from "@/lib/api";
 import { fetchPaymentMethods, purchaseTicket, type PurchasePayload } from "@/lib/crowdpass";
+import { referralCodeFor } from "@/lib/referral";
 import { money, normalizePhone } from "@/lib/format";
 import { normalizeCryptoDeposit } from "@/lib/crypto-deposit";
 import { rememberPendingPurchase } from "@/lib/pending";
@@ -188,6 +189,8 @@ export function CheckoutForm({
   const [requestedQuantity, setRequestedQuantity] = useState(1);
   const [chosenLane, setChosenLane] = useState<"fiat" | "crypto" | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // NDPA: the organizer may market only to buyers who ticked this themselves.
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const tier = tiers.find((t) => t.id === tierId) ?? null;
   const maxQuantity = maxQuantityFor(tier);
@@ -341,6 +344,8 @@ export function CheckoutForm({
     }
 
     const phone = normalizePhone(values.buyerPhone);
+    // The last referral link opened for this event, if still live.
+    const referralCode = referralCodeFor(event.id);
 
     purchase.mutate({
       eventId: event.id,
@@ -357,6 +362,8 @@ export function CheckoutForm({
       // (CORS_ORIGINS / APP_URL); otherwise the backend keeps its own
       // callback page and the buyer still settles, just on the API's page.
       returnUrl: `${window.location.origin}/checkout/callback`,
+      ...(referralCode ? { referralCode } : null),
+      ...(marketingOptIn ? { marketingOptIn: true } : null),
     });
   });
 
@@ -472,6 +479,15 @@ export function CheckoutForm({
             </Button>
           </Card>
         )}
+        <label className="flex cursor-pointer items-start gap-3 py-1 text-label text-text-dim">
+          <input
+            type="checkbox"
+            checked={marketingOptIn}
+            onChange={(e) => setMarketingOptIn(e.target.checked)}
+            className="mt-0.5 size-5 shrink-0 accent-accent"
+          />
+          Tell me about future events from this organizer.
+        </label>
       </section>
 
       {/* Payment */}

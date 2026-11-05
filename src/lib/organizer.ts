@@ -21,6 +21,8 @@ import type {
   ApiOrganizerEvents,
   ApiPayouts,
   ApiTicketAdmin,
+  ApiReferralLink,
+  ApiReferralStats,
   ApiStallType,
   ApiVendorApplications,
   ApiVendorRegistration,
@@ -448,4 +450,41 @@ export function fetchVendorApplications(
     `/organizer/events/${encodeURIComponent(eventId)}/vendors?${params}`,
     { timeout: 45_000 },
   );
+}
+
+// ---------------------------------------------------------------------------
+// Referral links (#48–#51)
+// ---------------------------------------------------------------------------
+
+/** Every link for the event, the automatic vendor ones included. */
+export function fetchReferralLinks(eventId: string) {
+  return serverFetch<ApiReferralLink[]>(
+    `/organizer/events/${encodeURIComponent(eventId)}/referral-links`,
+    { timeout: 45_000 },
+  );
+}
+
+/** The leaderboard: per-link sales, plus the unattributed remainder. */
+export function fetchReferralStats(eventId: string) {
+  return serverFetch<ApiReferralStats>(
+    `/organizer/events/${encodeURIComponent(eventId)}/referrals/stats`,
+    { timeout: 45_000 },
+  );
+}
+
+/**
+ * The leaderboard joined to the links it ranks, with each one's expiry
+ * judged now — on the server, so the page renders it without a clock
+ * mismatch on hydration.
+ */
+export function rankLinks(stats: ApiReferralStats, links: ApiReferralLink[], now = Date.now()) {
+  const byId = new Map(links.map((l) => [l.id, l]));
+  return stats.links.map((row) => {
+    const link = byId.get(row.id) ?? null;
+    return {
+      ...row,
+      link,
+      expired: !!link && new Date(link.effectiveExpiresAt).getTime() <= now,
+    };
+  });
 }
