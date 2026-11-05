@@ -253,13 +253,28 @@ export interface ApiClaimVerifyResult {
   valid: true;
 }
 
+/**
+ * One question on a post-purchase form. A `select` is a required pick-one
+ * (size, colour); a `text` is a short free-text line (the name for the back
+ * of a shirt), optional unless `required`.
+ */
+export type ApiTicketFormField =
+  | { type: "select"; key: string; label: string; options: string[] }
+  | {
+      type: "text";
+      key: string;
+      label: string;
+      required: boolean;
+      maxLength: number;
+      hint?: string;
+    };
+
 /** A ticket type's post-purchase form, with this ticket's answers. */
 export interface ApiTicketForm {
   title: string;
   /** ISO. After it, the form takes no answers. */
   closesAt: string | null;
-  /** Every field is a pick-one from `options`. */
-  fields: { key: string; label: string; options: string[] }[];
+  fields: ApiTicketFormField[];
   answers: Record<string, string> | null;
   submittedAt: string | null;
   open: boolean;
