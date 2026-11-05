@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/format";
 import type { ApiTicketForm } from "@/types/api";
 import { Chip } from "./Chip";
 import { CheckIcon } from "./icons";
-import { Badge, Button, Card, ErrorNote, Spinner } from "./ui";
+import { Badge, Button, Card, ErrorNote, Field, Spinner } from "./ui";
 
 /**
  * The questions a ticket type asks once it is paid for — a merch tier's
@@ -31,14 +31,21 @@ export function TicketForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const complete = form.fields.every((f) => picked[f.key]);
+  // Selects are always required; a text line only when the form says so.
+  const complete = form.fields.every((f) =>
+    f.type === "text" && !f.required ? true : !!picked[f.key]?.trim(),
+  );
 
   async function submit() {
     if (!complete || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
-      const ticket = await submitTicketForm(reference, picked);
+      // A blank optional line is left out rather than sent as "".
+      const answers = Object.fromEntries(
+        Object.entries(picked).filter(([, v]) => v.trim()),
+      );
+      const ticket = await submitTicketForm(reference, answers);
       if (ticket.form) setForm(ticket.form);
     } catch (err) {
       setError(
@@ -63,8 +70,8 @@ export function TicketForm({
           {form.fields.map((f) => (
             <div key={f.key} className="flex items-baseline justify-between gap-4">
               <dt className="text-label text-text-faint">{f.label}</dt>
-              <dd className="text-label font-medium text-text">
-                {answers[f.key] ?? "—"}
+              <dd className="min-w-0 truncate text-label font-medium text-text">
+                {answers[f.key] ?? (f.type === "text" ? "None" : "—")}
               </dd>
             </div>
           ))}
@@ -103,36 +110,54 @@ export function TicketForm({
       <div className="flex flex-col gap-1">
         <h2 className="text-label font-bold text-text">{form.title}</h2>
         <p className="text-label text-text-dim">
-          Your ticket comes with merch. Pick what you&apos;d like
+          Your ticket comes with merch. Tell us what you&apos;d like
           {form.closesAt ? ` by ${formatDate(form.closesAt)}` : ""}.
         </p>
       </div>
 
-      {form.fields.map((f) => (
-        <div key={f.key} className="flex flex-col gap-2">
-          <p id={`form-${f.key}`} className="text-label text-text-faint">
-            {f.label}
-          </p>
-          <div
-            role="group"
-            aria-labelledby={`form-${f.key}`}
-            className="flex flex-wrap gap-2"
-          >
-            {f.options.map((option) => (
-              <Chip
-                key={option}
-                active={picked[f.key] === option}
-                disabled={submitting}
-                onClick={() =>
-                  setPicked((prev) => ({ ...prev, [f.key]: option }))
-                }
-              >
-                {option}
-              </Chip>
-            ))}
+      {form.fields.map((f) =>
+        f.type === "text" ? (
+          <Field
+            key={f.key}
+            label={f.label}
+            hint={
+              f.hint ??
+              `${f.required ? "" : "Optional · "}up to ${f.maxLength} characters`
+            }
+            value={picked[f.key] ?? ""}
+            maxLength={f.maxLength}
+            autoComplete="off"
+            disabled={submitting}
+            onChange={(e) =>
+              setPicked((prev) => ({ ...prev, [f.key]: e.target.value }))
+            }
+          />
+        ) : (
+          <div key={f.key} className="flex flex-col gap-2">
+            <p id={`form-${f.key}`} className="text-label text-text-faint">
+              {f.label}
+            </p>
+            <div
+              role="group"
+              aria-labelledby={`form-${f.key}`}
+              className="flex flex-wrap gap-2"
+            >
+              {f.options.map((option) => (
+                <Chip
+                  key={option}
+                  active={picked[f.key] === option}
+                  disabled={submitting}
+                  onClick={() =>
+                    setPicked((prev) => ({ ...prev, [f.key]: option }))
+                  }
+                >
+                  {option}
+                </Chip>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ),
+      )}
 
       <ErrorNote>{error}</ErrorNote>
 
