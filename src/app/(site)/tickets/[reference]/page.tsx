@@ -10,6 +10,7 @@ import { TicketCredential } from "@/components/TicketCredential";
 import { PendingTicket } from "@/components/PendingTicket";
 import { Celebration } from "@/components/Celebration";
 import { Mascot } from "@/components/Mascot";
+import { TicketForm } from "@/components/TicketForm";
 import { TICKET_STATUS as STATUS } from "@/lib/ticket-status";
 import type { ApiTicket } from "@/types/api";
 
@@ -185,6 +186,16 @@ export default async function TicketPage({
             </div>
           ) : null}
         </Card>
+
+        {ticket.form ? (
+          // Keyed on the reference so a client-side hop to another ticket
+          // starts from that ticket's answers, not this one's.
+          <TicketForm
+            key={ticket.reference}
+            reference={ticket.reference}
+            initial={ticket.form}
+          />
+        ) : null}
 
         <ButtonLink
           href={`/events/${event.slug}`}
