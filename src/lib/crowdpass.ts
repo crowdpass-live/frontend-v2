@@ -339,3 +339,17 @@ export function fetchTicketByReference(reference: string): Promise<ApiTicket> {
     cache: "no-store",
   });
 }
+
+/**
+ * Answers a ticket's post-purchase form (merch size and colour). One shot:
+ * the backend refuses a second submission. Returns the updated ticket.
+ */
+export function submitTicketForm(
+  reference: string,
+  answers: Record<string, string>,
+): Promise<ApiTicket> {
+  return apiFetch<ApiTicket>(`/tickets/${encodeURIComponent(reference)}/form`, {
+    method: "POST",
+    body: { answers },
+  });
+}

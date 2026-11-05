@@ -253,6 +253,20 @@ export interface ApiClaimVerifyResult {
   valid: true;
 }
 
+/** A ticket type's post-purchase form, with this ticket's answers. */
+export interface ApiTicketForm {
+  title: string;
+  /** ISO. After it, the form takes no answers. */
+  closesAt: string | null;
+  /** Every field is a pick-one from `options`. */
+  fields: { key: string; label: string; options: string[] }[];
+  answers: Record<string, string> | null;
+  submittedAt: string | null;
+  open: boolean;
+  /** Paid for, not yet answered, and still open: the whole gate. */
+  canSubmit: boolean;
+}
+
 export interface ApiTicket {
   id: string;
   reference: string;
@@ -278,6 +292,11 @@ export interface ApiTicket {
     description: string | null;
     price: string | number;
   };
+  /**
+   * Questions the ticket type asks once paid for (a merch tier's T-shirt size
+   * and colour). Null for almost every ticket; absent from an older backend.
+   */
+  form?: ApiTicketForm | null;
   event: {
     id: string;
     name: string;
