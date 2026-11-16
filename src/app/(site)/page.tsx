@@ -10,11 +10,14 @@ import { PassPreview } from "@/components/landing/PassPreview";
 import { HowItWorks, SpeechBubble } from "@/components/landing/HowItWorks";
 import { Partners } from "@/components/landing/Partners";
 import { PlatformStats, PlatformStatsSkeleton } from "@/components/landing/PlatformStats";
+import { HeroBackdrop } from "@/components/landing/HeroBackdrop";
+import { HeroShell } from "@/components/landing/HeroShell";
 import { Mascot } from "@/components/Mascot";
 import { ButtonLink, Container } from "@/components/ui";
 import {
   ArrowRightIcon,
   CardIcon,
+  ChainIcon,
   CheckIcon,
   ScanIcon,
   TicketIcon,
@@ -53,6 +56,7 @@ export default async function LandingPage({
   return (
     <main className="flex flex-1 flex-col">
       <Hero />
+      <div id="after-hero" className="scroll-mt-16" />
       {/* Straight under the hero: the claim, then the proof. */}
       <Suspense fallback={<PlatformStatsSkeleton />}>
         <PlatformStats />
@@ -74,36 +78,78 @@ export default async function LandingPage({
 /** `--rise-delay` for the staggered entrance (see `.rise-in`). */
 const delay = (ms: number) => ({ "--rise-delay": `${ms}ms` }) as CSSProperties;
 
+/**
+ * What "your next ___" cycles through. Short on purpose: the widest has to
+ * fit one line at 40px on a 320px phone. The first is what shows without
+ * motion.
+ */
+const NEXT_THINGS = ["concert", "owambe", "match day", "festival", "comedy show"];
+
+const HERO_PROOF = [
+  { icon: ScanIcon, label: "Scans once, can't be faked" },
+  { icon: CardIcon, label: "Pay in naira, in a minute" },
+  { icon: TicketIcon, label: "No app, no account" },
+] as const;
+
 function Hero() {
   return (
-    // `overflow-hidden` contains the pass's glow and tilted back card, which
-    // would otherwise push a 320px viewport sideways.
-    <section className="relative isolate overflow-hidden">
-      <div className="stage-light absolute inset-0 -z-10" aria-hidden />
+    // `overflow-hidden` (on the shell) contains the pass's glow, the chips
+    // and the tilted back card, which would otherwise push a 320px viewport
+    // sideways.
+    <HeroShell className="flex min-h-[calc(100svh-4rem)] flex-col">
+      <HeroBackdrop />
+      {/* Darken the crowd where the words sit, and fade it into the page
+       * before the stats begin, so the photo never ends at a hard line. */}
+      <div className="hero-scrim absolute inset-0 -z-10" aria-hidden />
+      <div className="hero-spotlight pointer-events-none absolute inset-0 -z-10" aria-hidden />
+      <div className="hero-grain pointer-events-none absolute inset-0 -z-10" aria-hidden />
 
       <Container
         size="page"
-        className="grid grid-cols-1 items-center gap-16 pb-14 pt-12 sm:pt-16 lg:grid-cols-[1.2fr_1fr] lg:gap-12 lg:pb-20 lg:pt-24"
+        className="grid flex-1 grid-cols-1 items-center gap-6 pb-16 pt-12 sm:pt-16 lg:grid-cols-[1.15fr_1fr] lg:gap-10 lg:pb-24 lg:pt-20"
       >
         <div className="flex flex-col items-start gap-6 lg:gap-8">
           <span
-            className="rise-in inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3 py-1.5 text-helper font-medium text-text-dim"
+            className="rise-in inline-flex items-center gap-2.5 rounded-full border border-border-strong bg-bg/60 px-3.5 py-1.5 text-helper font-medium text-text-dim backdrop-blur-md"
             style={delay(0)}
           >
-            <span className="size-1.5 rounded-full bg-accent" aria-hidden />
+            <span className="live-dot relative inline-flex size-2 rounded-full bg-accent" aria-hidden />
             Events · Tickets · Verified
           </span>
 
-          <h1
-            className="rise-in text-[2.5rem] font-bold leading-[1.05] tracking-tight text-text text-balance sm:text-6xl lg:text-7xl"
-            style={delay(80)}
-          >
-            Your next event, <span className="text-accent">one tap away.</span>
+          <h1 className="text-[2.5rem] font-bold leading-[1.02] tracking-tight text-text sm:text-6xl lg:text-[4.75rem]">
+            {/* Screen readers get the sentence once, not a ticker. */}
+            <span className="sr-only">Your next event, one tap away.</span>
+            <span aria-hidden>
+              <span className="line-mask">
+                <span className="line-in" style={delay(120)}>Your next</span>
+              </span>
+              <span className="line-mask">
+                <span className="line-in" style={delay(220)}>
+                  <span className="word-cycle text-accent">
+                    {NEXT_THINGS.map((word, i) => (
+                      <span
+                        key={word}
+                        className="word-cycle-item"
+                        style={{ "--i": i, "--n": NEXT_THINGS.length } as CSSProperties}
+                      >
+                        {word},
+                      </span>
+                    ))}
+                  </span>
+                </span>
+              </span>
+              <span className="line-mask">
+                <span className="line-in" style={delay(320)}>
+                  one tap <span className="text-stroke">away.</span>
+                </span>
+              </span>
+            </span>
           </h1>
 
           <p
-            className="rise-in max-w-xl text-body text-text-dim sm:text-section"
-            style={delay(160)}
+            className="rise-in max-w-lg text-body text-text-dim sm:text-section sm:leading-7"
+            style={delay(480)}
           >
             Find what&apos;s on across Nigeria, pay in naira in under a minute,
             and walk in with a ticket that can&apos;t be copied or faked. No
@@ -112,39 +158,103 @@ function Hero() {
 
           <div
             className="rise-in flex w-full flex-col gap-3 sm:w-auto sm:flex-row"
-            style={delay(240)}
+            style={delay(580)}
           >
-            <ButtonLink href="/events" className="w-full sm:w-auto">
+            <ButtonLink href="/events" className="hero-cta group w-full sm:w-auto">
               Explore events
-              <ArrowRightIcon width={18} height={18} />
+              <ArrowRightIcon
+                width={18}
+                height={18}
+                className="transition-transform duration-300 group-hover:translate-x-1"
+              />
             </ButtonLink>
-            <ButtonLink href="/host" variant="secondary" className="w-full sm:w-auto">
+            <ButtonLink
+              href="/host"
+              variant="secondary"
+              className="w-full backdrop-blur-md sm:w-auto"
+            >
               Host an event
             </ButtonLink>
           </div>
+
+          <ul
+            className="rise-in flex flex-wrap gap-x-5 gap-y-2.5 pt-1"
+            style={delay(680)}
+          >
+            {HERO_PROOF.map(({ icon: Icon, label }) => (
+              <li key={label} className="flex items-center gap-2 text-helper text-text-dim">
+                <Icon width={16} height={16} className="shrink-0 text-accent" />
+                {label}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <HeroVisual />
       </Container>
-    </section>
+
+      <ScrollCue />
+    </HeroShell>
   );
 }
 
 /**
- * The pass, with the mascot stepping out in front of it. The mascot *is* a
- * ticket stub, so it introduces itself as one — the first thing a visitor
- * learns about the character is what it stands for.
+ * The pass, tilting toward the pointer, with what happens to a ticket
+ * floating round it — paid, minted, checked in — and the mascot stepping out
+ * in front. The mascot *is* a ticket stub, so it introduces itself as one.
+ *
+ * Every layer carries a `--depth`; `.hero-depth` moves it with the pointer by
+ * that much, so near things travel further than far ones.
  */
 function HeroVisual() {
   return (
-    <div className="rise-in relative px-6 sm:px-0 sm:pb-4" style={delay(200)}>
-      <PassPreview className="sm:pl-16 lg:pl-20" />
+    <div className="rise-in relative px-6 pt-14 sm:px-0 sm:py-12" style={delay(360)} aria-hidden>
+      <div className="hero-depth" style={{ "--depth": 10 } as CSSProperties}>
+        <div className="hero-tilt">
+          <PassPreview className="sm:pl-16 lg:pl-20" />
+        </div>
+      </div>
+
+      {/* Chips sit inside the visual's own box, in the padding above and
+       * below the pass, so they cover its edge and never its words, and none
+       * can widen the page. A phone gets one; three crowd a 320px card. */}
+      <HeroChip
+        className="right-2 top-0 flex sm:right-0 lg:-right-4"
+        depth={26}
+        enter={900}
+        tone="ok"
+        icon={<CardIcon width={16} height={16} />}
+        title="Paid"
+        detail="₦ · 38 seconds"
+      />
+      <HeroChip
+        className="top-0 hidden sm:left-16 sm:flex lg:left-20"
+        depth={34}
+        enter={1150}
+        tone="accent"
+        icon={<ChainIcon width={16} height={16} />}
+        title="Minted"
+        detail="Signed on-chain"
+      />
+      <HeroChip
+        className="bottom-0 right-6 hidden sm:flex lg:right-2"
+        depth={18}
+        enter={1400}
+        tone="info"
+        icon={<ScanIcon width={16} height={16} />}
+        title="Checked in"
+        detail="Gate A · once"
+      />
+
       {/* On a phone the pass fills the width, so the mascot stands below it
        * with the bubble beside it — overlapping there would cover the QR.
        * From `sm` the pass leaves room on its left and the mascot steps in
        * front of its corner. */}
-      <div className="relative mt-6 flex items-end gap-3 sm:absolute sm:-bottom-6 sm:left-0 sm:mt-0 sm:flex-col sm:items-start sm:gap-0 lg:-left-10">
-        <SpeechBubble className="relative order-2 mb-10 sm:order-none sm:mb-2.5 sm:ml-1">
+      <div
+        className="hero-depth relative mt-6 flex items-end gap-3 sm:absolute sm:bottom-2 sm:left-0 sm:mt-0 sm:flex-col sm:items-start sm:gap-0 lg:-left-10"
+        style={{ "--depth": 40, "--rise-delay": "1700ms" } as CSSProperties}
+      >
+        <SpeechBubble className="pop-in relative order-2 mb-10 sm:order-none sm:mb-2.5 sm:ml-1">
           Hi! I&apos;m your ticket.
         </SpeechBubble>
         <div className="mascot-bob">
@@ -152,6 +262,67 @@ function HeroVisual() {
         </div>
       </div>
     </div>
+  );
+}
+
+const CHIP_TONES = {
+  ok: "bg-ok/15 text-ok",
+  info: "bg-info-tint text-info",
+  accent: "bg-accent-tint text-accent",
+} as const;
+
+/** A glass status card orbiting the pass. Tinted icon, never a solid pill. */
+function HeroChip({
+  className,
+  depth,
+  enter,
+  tone,
+  icon,
+  title,
+  detail,
+}: {
+  className: string;
+  depth: number;
+  enter: number;
+  tone: keyof typeof CHIP_TONES;
+  icon: ReactNode;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div
+      // Parallax (`translate`) and the idle float (`transform`) share this
+      // element; the entrance needs a transform of its own, so it is inside.
+      className={`hero-depth chip-float absolute z-10 ${className}`}
+      style={{ "--depth": depth, "--bob-delay": `-${depth * 90}ms` } as CSSProperties}
+    >
+      <div
+        className="pop-in flex items-center gap-2.5 rounded-2xl border border-border-strong bg-bg/70 py-2 pl-2 pr-3.5 shadow-xl shadow-black/50 backdrop-blur-md"
+        style={{ "--rise-delay": `${enter}ms` } as CSSProperties}
+      >
+        <span className={`inline-flex size-8 items-center justify-center rounded-xl ${CHIP_TONES[tone]}`}>
+          {icon}
+        </span>
+        <span className="flex flex-col leading-tight">
+          <span className="text-label font-bold text-text">{title}</span>
+          <span className="text-helper text-text-faint">{detail}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** A thin line with a light running down it: "there's more below". */
+function ScrollCue() {
+  return (
+    <a
+      href="#after-hero"
+      className="rise-in absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 text-helper uppercase tracking-[0.2em] text-text-faint transition-colors hover:text-text-dim lg:flex"
+      style={delay(1200)}
+    >
+      Scroll
+      <span className="scroll-line relative block h-10 w-px overflow-hidden bg-border-strong" />
+    </a>
   );
 }
 

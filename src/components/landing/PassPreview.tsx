@@ -47,6 +47,9 @@ export function PassPreview({ className }: { className?: string }) {
           className="pass-float relative overflow-hidden rounded-[28px] border border-border-strong bg-surface shadow-2xl shadow-black/60"
           style={{ "--pass-tilt": "-3deg" } as CSSProperties}
         >
+          {/* Light catching the card as it tilts (see `.pass-glare`). */}
+          <div className="pass-glare pointer-events-none absolute inset-0 z-10" />
+
           {/* Header band: the maroon tint, not solid orange — the mark is
            * orange and would vanish on it. */}
           <div className="flex items-center justify-between gap-3 border-b border-accent-tint-border bg-accent-tint px-6 py-5">
@@ -87,7 +90,9 @@ export function PassPreview({ className }: { className?: string }) {
           </div>
 
           <div className="flex items-center gap-5 px-6 pb-6 pt-6">
-            <div className="shrink-0 rounded-xl bg-text p-2 text-ink">
+            <div className="relative shrink-0 overflow-hidden rounded-xl bg-text p-2 text-ink">
+              {/* A door scanner reading the code, every few seconds. */}
+              <span className="qr-scan pointer-events-none absolute inset-x-0 top-0 h-6" />
               <svg
                 viewBox={`0 0 ${qr.size} ${qr.size}`}
                 className="block size-[88px]"
