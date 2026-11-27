@@ -226,8 +226,9 @@ body {
 
 /* Prize wheel (see components/spin/PrizeWheel.tsx). At rest the rim pegs
  * glow steadily; while the wheel turns they chase in two alternating sets
- * and the pointer ticks, the way a real wheel's flapper catches the pegs.
- * Both stop the moment it lands, so the landing reads as the event. */
+ * and stop the moment it lands, so the landing reads as the event. The
+ * pointer is animated in JS from the wheel's real angle
+ * (components/spin/wheel-motion.ts). */
 .wheel-peg {
   opacity: 0.85;
 }
@@ -250,26 +251,10 @@ body {
   animation-delay: 160ms;
 }
 
-@keyframes wheel-pointer-tick {
-  0%,
-  100% {
-    transform: translateX(-50%) translateY(-0.5rem) rotate(0deg);
-  }
-  40% {
-    transform: translateX(-50%) translateY(-0.5rem) rotate(-14deg);
-  }
-}
-
-[data-spinning] .wheel-pointer {
-  transform-origin: 50% 30%;
-  animation: wheel-pointer-tick 180ms ease-out infinite;
-}
-
 /* The global reduced-motion rule shortens these to one blink; stop them
  * outright instead, so nothing flickers. */
 @media (prefers-reduced-motion: reduce) {
-  [data-spinning] .wheel-peg,
-  [data-spinning] .wheel-pointer {
+  [data-spinning] .wheel-peg {
     animation: none;
   }
 }
