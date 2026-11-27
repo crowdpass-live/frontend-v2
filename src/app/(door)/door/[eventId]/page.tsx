@@ -3,10 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { getDoors } from "@/lib/door";
+import { getSpinCampaignForEvent } from "@/lib/spin-wheel-server";
 import { formatDateTimeLong } from "@/lib/format";
 import { ArrowLeftIcon } from "@/components/icons";
 import { DoorConsole } from "@/components/door/DoorConsole";
-import { Container } from "@/components/ui";
+import { ButtonLink, Container } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Check in guests" };
 
@@ -26,6 +27,8 @@ export default async function DoorEventPage({
   const { eventId } = await params;
   const door = (await getDoors())?.find((d) => d.eventId === eventId);
   if (!door) notFound();
+  // A wheel that can't be fetched just hides the link; the door must load.
+  const wheel = await getSpinCampaignForEvent(eventId).catch(() => null);
 
   return (
     <Container size="page" className="flex flex-col gap-5 py-6 sm:py-8">
@@ -38,6 +41,16 @@ export default async function DoorEventPage({
         </Link>
         <h1 className="break-words text-title font-bold text-text">{door.name}</h1>
         <p className="text-helper text-text-faint">{formatDateTimeLong(door.startTime)}</p>
+        {wheel ? (
+          <ButtonLink
+            href={`/door/${door.eventId}/prizes`}
+            variant="secondary"
+            size="sm"
+            className="mt-2 w-fit"
+          >
+            Prize desk
+          </ButtonLink>
+        ) : null}
       </div>
       <DoorConsole eventId={door.eventId} startTime={door.startTime} endTime={door.endTime} />
     </Container>
