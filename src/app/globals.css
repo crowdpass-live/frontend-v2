@@ -224,6 +224,56 @@ body {
   animation: toast-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+/* Prize wheel (see components/spin/PrizeWheel.tsx). At rest the rim pegs
+ * glow steadily; while the wheel turns they chase in two alternating sets
+ * and the pointer ticks, the way a real wheel's flapper catches the pegs.
+ * Both stop the moment it lands, so the landing reads as the event. */
+.wheel-peg {
+  opacity: 0.85;
+}
+
+@keyframes wheel-peg-chase {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+[data-spinning] .wheel-peg {
+  animation: wheel-peg-chase 320ms steps(1, end) infinite;
+}
+
+[data-spinning] .wheel-peg-b {
+  animation-delay: 160ms;
+}
+
+@keyframes wheel-pointer-tick {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(-0.5rem) rotate(0deg);
+  }
+  40% {
+    transform: translateX(-50%) translateY(-0.5rem) rotate(-14deg);
+  }
+}
+
+[data-spinning] .wheel-pointer {
+  transform-origin: 50% 30%;
+  animation: wheel-pointer-tick 180ms ease-out infinite;
+}
+
+/* The global reduced-motion rule shortens these to one blink; stop them
+ * outright instead, so nothing flickers. */
+@media (prefers-reduced-motion: reduce) {
+  [data-spinning] .wheel-peg,
+  [data-spinning] .wheel-pointer {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
