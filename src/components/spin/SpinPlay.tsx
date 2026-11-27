@@ -15,12 +15,7 @@ import { Celebration } from "@/components/Celebration";
 import { Mascot } from "@/components/Mascot";
 import { TicketQr } from "@/components/TicketQr";
 import { Badge, Button, ButtonLink, Card, ErrorNote, Field, Spinner } from "@/components/ui";
-import {
-  PrizeWheel,
-  SPIN_DURATION_MS,
-  buildSegments,
-  rotationFor,
-} from "./PrizeWheel";
+import { PrizeWheel, buildSegments, rotationFor } from "./PrizeWheel";
 
 /** `landed`: the wheel has stopped and the winning slice is lit, a beat
  * before the result card replaces it. */
@@ -55,7 +50,8 @@ export function SpinPlay({
   const segments = useMemo(() => buildSegments(campaign.prizes), [campaign.prizes]);
   const [result, setResult] = useState<SpinResult | null>(campaign.me?.spin ?? null);
   const [phase, setPhase] = useState<Phase>(result ? "revealed" : "idle");
-  const [rotation, setRotation] = useState(0);
+  /** Angle the wheel is spinning to; null until the first spin. */
+  const [target, setTarget] = useState<number | null>(null);
   const [winner, setWinner] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
@@ -88,15 +84,17 @@ export function SpinPlay({
       : segments.findIndex((s) => s.prizeId === null);
     const landOn = Math.max(index, 0);
     setWinner(landOn);
-    setRotation((from) =>
-      rotationFor(from, landOn, segments.length, 7, Math.random() - 0.5),
+    setTarget((from) =>
+      rotationFor(from ?? 0, landOn, segments.length, 5, Math.random() - 0.5),
     );
     setPhase("spinning");
-    setTimeout(() => {
-      setPhase("landed");
-      setCelebrate(!!res.spin.prize);
-    }, SPIN_DURATION_MS + 150);
-    setTimeout(() => setPhase("revealed"), SPIN_DURATION_MS + 150 + LANDED_HOLD_MS);
+  }
+
+  /** The wheel has come to rest: light the slice, then show the card. */
+  function settle() {
+    setPhase("landed");
+    setCelebrate(!!result?.prize);
+    setTimeout(() => setPhase("revealed"), LANDED_HOLD_MS);
   }
 
   const signupHref = `/signup?next=${encodeURIComponent(here)}`;
@@ -104,14 +102,15 @@ export function SpinPlay({
 
   return (
     <div className="flex flex-col gap-6">
-      {celebrate ? <Celebration seed={rotation || 1} /> : null}
+      {celebrate ? <Celebration seed={Math.round(target ?? 1)} /> : null}
 
       {phase !== "revealed" ? (
         <PrizeWheel
           segments={segments}
-          rotation={rotation}
+          target={target}
           spinning={phase === "spinning"}
           winner={phase === "landed" ? winner : null}
+          onSettled={settle}
         />
       ) : null}
 

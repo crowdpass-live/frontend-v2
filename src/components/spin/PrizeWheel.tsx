@@ -1,13 +1,15 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { SpinPrize } from "@/lib/spin-wheel";
 import { prizeArt, wheelLabel } from "@/lib/spin-wheel";
 import { BrandMark } from "@/components/BrandMark";
 import { cx } from "@/components/ui";
+import { SPIN_TOTAL_MS, angleAt, pointerAt } from "./wheel-motion";
 
 /**
  * The wheel itself: pure display. It never decides anything. The server picks
- * the result and `SpinPlay` turns that into a `rotation` that lands the
+ * the result and `SpinPlay` turns that into a `target` angle that lands the
  * matching slice under the pointer.
  *
  * Slices are deep, alternating tones so the prize art carries the colour; the
@@ -35,8 +37,6 @@ export function buildSegments(prizes: SpinPrize[]): WheelSegment[] {
   while (out.length < 8) out.push(...one);
   return out;
 }
-
-export const SPIN_DURATION_MS = 5200;
 
 /**
  * Degrees to add to `from` so slice `index` stops under the top pointer,
@@ -84,31 +84,74 @@ function slicePath(a0: number, a1: number, radius: number): string {
 
 export function PrizeWheel({
   segments,
-  rotation,
+  target,
   spinning,
   winner = null,
+  onSettled,
 }: {
   segments: WheelSegment[];
-  rotation: number;
-  /** Animate to `rotation` (false: jump, e.g. on load). */
+  /** Angle to spin to; each new value starts a spin. Null: at rest. */
+  target: number | null;
+  /** Lights the rim pegs while true. */
   spinning: boolean;
   /** Slice index to light up once the wheel has stopped. */
   winner?: number | null;
+  /** Called once the wheel has come to rest on `target`. */
+  onSettled?: () => void;
 }) {
   const seg = 360 / segments.length;
   const landed = winner !== null && !spinning;
   const pegs = segments.length * 2;
+
+  const wheelRef = useRef<HTMLDivElement>(null);
+  const pointerRef = useRef<SVGSVGElement>(null);
+  const angle = useRef(0);
+  const settled = useRef(onSettled);
+  useEffect(() => {
+    settled.current = onSettled;
+  });
+
+  // Driven frame by frame, writing transforms straight to the DOM: a
+  // React render per frame would stutter on a mid-range phone.
+  useEffect(() => {
+    if (target === null) return;
+    const wheel = wheelRef.current;
+    const pointer = pointerRef.current;
+    if (!wheel || !pointer) return;
+
+    const from = angle.current;
+    let start: number | null = null;
+    let kick = 0;
+    let frame = requestAnimationFrame(function step(now) {
+      start ??= now;
+      const t = now - start;
+      const a = angleAt(from, target, t);
+      kick = pointerAt(a, angle.current, seg, kick);
+      angle.current = a;
+      wheel.style.transform = `rotate(${a}deg)`;
+      pointer.style.transform = `rotate(${kick}deg)`;
+      if (t < SPIN_TOTAL_MS) {
+        frame = requestAnimationFrame(step);
+      } else {
+        pointer.style.transform = "";
+        settled.current?.();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [target, seg]);
 
   return (
     <div
       className="relative mx-auto aspect-square w-full max-w-[380px]"
       data-spinning={spinning || undefined}
     >
-      {/* Pointer: fixed, ticks while the wheel turns. */}
+      {/* Pointer: fixed; the pegs knock it aside as they pass. */}
       <svg
+        ref={pointerRef}
         aria-hidden
         viewBox="0 0 48 56"
-        className="wheel-pointer absolute left-1/2 top-0 z-20 w-11 -translate-x-1/2 -translate-y-2 drop-shadow-[0_6px_10px_rgba(0,0,0,0.55)]"
+        style={{ transformOrigin: "50% 34%" }}
+        className="absolute left-1/2 top-0 z-20 w-11 -translate-x-1/2 -translate-y-2 drop-shadow-[0_6px_10px_rgba(0,0,0,0.55)]"
       >
         {/* A rounded wedge, the shape of a wheel's flapper. */}
         <path
@@ -120,15 +163,7 @@ export function PrizeWheel({
 
       {/* The div rotates, not an SVG group: CSS transforms on SVG children
           resolve their origin differently across browsers. */}
-      <div
-        style={{
-          transform: `rotate(${rotation}deg)`,
-          transition: spinning
-            ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.7, 0.12, 1)`
-            : "none",
-        }}
-        className="size-full will-change-transform"
-      >
+      <div ref={wheelRef} className="size-full will-change-transform">
         <svg
           viewBox={`0 0 ${SIZE} ${SIZE}`}
           role="img"
