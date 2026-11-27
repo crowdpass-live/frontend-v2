@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
 import {
   formatClaimCode,
+  prizeArt,
   spinOnce,
   submitAirtimePhone,
   type SpinCampaign,
@@ -21,7 +22,12 @@ import {
   rotationFor,
 } from "./PrizeWheel";
 
-type Phase = "idle" | "requesting" | "spinning" | "revealed";
+/** `landed`: the wheel has stopped and the winning slice is lit, a beat
+ * before the result card replaces it. */
+type Phase = "idle" | "requesting" | "spinning" | "landed" | "revealed";
+
+/** How long the lit winning slice holds before the card. */
+const LANDED_HOLD_MS = 1300;
 
 function prefersReducedMotion(): boolean {
   return (
@@ -50,6 +56,7 @@ export function SpinPlay({
   const [result, setResult] = useState<SpinResult | null>(campaign.me?.spin ?? null);
   const [phase, setPhase] = useState<Phase>(result ? "revealed" : "idle");
   const [rotation, setRotation] = useState(0);
+  const [winner, setWinner] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
 
@@ -79,14 +86,17 @@ export function SpinPlay({
     const index = matches.length
       ? matches[Math.floor(Math.random() * matches.length)]
       : segments.findIndex((s) => s.prizeId === null);
+    const landOn = Math.max(index, 0);
+    setWinner(landOn);
     setRotation((from) =>
-      rotationFor(from, Math.max(index, 0), segments.length, 7, Math.random() - 0.5),
+      rotationFor(from, landOn, segments.length, 7, Math.random() - 0.5),
     );
     setPhase("spinning");
     setTimeout(() => {
-      setPhase("revealed");
+      setPhase("landed");
       setCelebrate(!!res.spin.prize);
-    }, SPIN_DURATION_MS + 250);
+    }, SPIN_DURATION_MS + 150);
+    setTimeout(() => setPhase("revealed"), SPIN_DURATION_MS + 150 + LANDED_HOLD_MS);
   }
 
   const signupHref = `/signup?next=${encodeURIComponent(here)}`;
@@ -97,7 +107,12 @@ export function SpinPlay({
       {celebrate ? <Celebration seed={rotation || 1} /> : null}
 
       {phase !== "revealed" ? (
-        <PrizeWheel segments={segments} rotation={rotation} spinning={phase === "spinning"} />
+        <PrizeWheel
+          segments={segments}
+          rotation={rotation}
+          spinning={phase === "spinning"}
+          winner={phase === "landed" ? winner : null}
+        />
       ) : null}
 
       {phase === "revealed" && result ? (
@@ -148,7 +163,7 @@ export function SpinPlay({
             className="w-full"
           >
             {phase === "requesting" ? <Spinner /> : null}
-            {phase === "spinning" ? "Spinning…" : "Spin the wheel"}
+            {phase === "spinning" || phase === "landed" ? "Spinning…" : "Spin the wheel"}
           </Button>
           <p className="text-center text-helper text-text-faint">One spin per person.</p>
         </div>
@@ -172,7 +187,7 @@ function ResultCard({
 
   if (!prize) {
     return (
-      <Card className="flex flex-col items-center gap-4 p-6 text-center">
+      <Card className="ticket-enter flex flex-col items-center gap-4 p-6 text-center">
         <Mascot pose="thinking" height={120} />
         <h2 className="text-section font-bold text-text">Not this time</h2>
         <p className="text-body text-text-dim">
@@ -189,8 +204,9 @@ function ResultCard({
   const code = result.claimCode ?? "";
 
   return (
-    <Card className="flex flex-col items-center gap-4 p-6 text-center">
-      <Mascot pose="success" height={120} />
+    <Card className="ticket-enter flex flex-col items-center gap-4 p-6 text-center">
+      {/* eslint-disable-next-line @next/next/no-img-element -- a 2 KB local SVG; next/image adds nothing */}
+      <img src={prizeArt(prize)} alt="" width={112} height={112} className="drop-shadow-[0_10px_24px_rgba(254,87,34,0.35)]" />
       <div className="flex flex-col gap-1">
         <p className="text-label text-text-dim">You won</p>
         <h2 className="text-title font-bold text-accent">{prize.label}</h2>

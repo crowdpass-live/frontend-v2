@@ -1,0 +1,18 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <title>Smartphone reward icon</title>
+  <g id="phone">
+    <rect x="264" y="102" width="496" height="820" rx="100" fill="#FFFFFF" />
+    <rect x="446" y="137" width="132" height="30" rx="15" fill="#0A0A0F" />
+    <g id="screen">
+      <rect x="286" y="192" width="452" height="624" rx="66" fill="#FE5722" />
+      <path d="M738 550V750C738 786 709 816 672 816H352C333 816 315 808 303 794C457 776 571 744 645 691C694 656 723 609 738 550Z" fill="#C43C11" />
+      <g id="signal" fill="#FFFFFF">
+        <rect x="333" y="544" width="100" height="133" rx="35" />
+        <rect x="449" y="481" width="101" height="196" rx="35" />
+        <rect x="567" y="422" width="104" height="254" rx="35" />
+      </g>
+      <path id="spark" d="M654 247C660 240 673 245 670 254L653 306L687 308C697 308 699 318 692 325L610 406C602 414 592 409 596 399L616 347H584C573 347 570 338 578 330Z" fill="#E5BF4B" />
+    </g>
+    <circle cx="512" cy="869" r="37" fill="#0A0A0F" />
+  </g>
+</svg>
