@@ -58,6 +58,31 @@ export interface PrizeSummary {
   })[];
 }
 
+/**
+ * The illustration for a prize (public/spin/, generated with Higgsfield as
+ * flat vector icons in the brand palette). Prizes are configured by label, so
+ * the art is matched on kind and label; anything unrecognised gets the gift.
+ * Null is the "next time" slice.
+ */
+export function prizeArt(prize: Pick<SpinPrize, "kind" | "label"> | null): string {
+  if (!prize) return "/spin/sparkle.svg";
+  if (prize.kind === "AIRTIME") return "/spin/airtime.svg";
+  if (/shirt|tee|jersey|hoodie/i.test(prize.label)) return "/spin/tshirt.svg";
+  if (/sweet|candy|chocolate|gum/i.test(prize.label)) return "/spin/sweets.svg";
+  return "/spin/gift.svg";
+}
+
+/**
+ * The short label a slice can fit. Airtime drops the word "airtime" because
+ * the phone icon already says it; the amount is what people read.
+ */
+export function wheelLabel(prize: Pick<SpinPrize, "kind" | "label" | "airtimeAmount">): string {
+  if (prize.kind === "AIRTIME" && prize.airtimeAmount) {
+    return `₦${prize.airtimeAmount.toLocaleString("en-NG")}`;
+  }
+  return prize.label;
+}
+
 /** `ABC-123` reads across a noisy booth better than `ABC123`. */
 export function formatClaimCode(code: string): string {
   return code.length === 6 ? `${code.slice(0, 3)}-${code.slice(3)}` : code;

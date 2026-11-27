@@ -49,7 +49,7 @@ export default async function SpinPage({ params }: { params: Promise<{ slug: str
         <p className="text-label font-medium text-accent">{campaign.event.name}</p>
         <h1 className="text-title font-bold text-text">Spin to win</h1>
         <p className="text-body text-text-dim">
-          {campaign.prizes.map((p) => p.label).join(" · ")}
+          Everyone gets one free spin. Collect what you win at the CrowdPass booth.
         </p>
       </div>
       <SpinPlay
